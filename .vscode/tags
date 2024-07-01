@@ -1,0 +1,82 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+.ycm_extra_conf.py	../.ycm_extra_conf.py	1;"	kind:file	line:1
+BitIdxToPort	../p4src/mc.py	/^def BitIdxToPort(index):$/;"	kind:function	line:42
+DIRTY	../p4src/table.py	/^DIRTY = 2$/;"	kind:variable	line:48
+DirectoryOfThisScript	../.ycm_extra_conf.py	/^def DirectoryOfThisScript():$/;"	kind:function	line:83
+FlagsForFile	../.ycm_extra_conf.py	/^def FlagsForFile( filename, **kwargs ):$/;"	kind:function	line:141
+GetCompilationInfoForFile	../.ycm_extra_conf.py	/^def GetCompilationInfoForFile( filename ):$/;"	kind:function	line:121
+GetMap	../p4src/mc.py	/^def GetMap():$/;"	kind:function	line:95
+Hosts	../p4src/mc.py	/^def Hosts():$/;"	kind:function	line:70
+IsHeaderFile	../.ycm_extra_conf.py	/^def IsHeaderFile( filename ):$/;"	kind:function	line:116
+MakeRelativePathsInFlagsAbsolute	../.ycm_extra_conf.py	/^def MakeRelativePathsInFlagsAbsolute( flags, working_directory ):$/;"	kind:function	line:87
+Memcached	../p4src/mc.py	/^def Memcached():$/;"	kind:function	line:82
+PRE	../p4src/mc.py	/^PRE = "\/home\/workspace\/DSM\/ccDSM\/"$/;"	kind:variable	line:7
+PRE	../p4src/table.py	/^PRE = "\/home\/workspace\/DSM\/ccDSM\/"$/;"	kind:variable	line:6
+Prefix	../p4src/mc.py	/^Prefix = "SPre"$/;"	kind:variable	line:63
+R_EVICT_DIRTY	../p4src/table.py	/^R_EVICT_DIRTY  = 5$/;"	kind:variable	line:35
+R_EVICT_SHARED	../p4src/table.py	/^R_EVICT_SHARED = 4$/;"	kind:variable	line:34
+R_READ_MISS	../p4src/table.py	/^R_READ_MISS    = 1$/;"	kind:variable	line:31
+R_WRITE_MISS	../p4src/table.py	/^R_WRITE_MISS   = 2$/;"	kind:variable	line:32
+R_WRITE_SHARED	../p4src/table.py	/^R_WRITE_SHARED = 3$/;"	kind:variable	line:33
+SHARED	../p4src/table.py	/^SHARED = 1$/;"	kind:variable	line:47
+SOURCE_EXTENSIONS	../.ycm_extra_conf.py	/^SOURCE_EXTENSIONS = [ '.cpp', '.cxx', '.cc', '.c', '.m', '.mm' ]$/;"	kind:variable	line:81
+TBinaryProtocol	../p4src/mc.py	/^from thrift.protocol import TBinaryProtocol, TCompactProtocol$/;"	kind:namespace	line:28
+TBinaryProtocol	../p4src/table.py	/^from thrift.protocol import TBinaryProtocol, TCompactProtocol$/;"	kind:namespace	line:27
+TCompactProtocol	../p4src/mc.py	/^from thrift.protocol import TBinaryProtocol, TCompactProtocol$/;"	kind:namespace	line:28
+TCompactProtocol	../p4src/table.py	/^from thrift.protocol import TBinaryProtocol, TCompactProtocol$/;"	kind:namespace	line:27
+TMultiplexedProtocol	../p4src/mc.py	/^from thrift.protocol.TMultiplexedProtocol import TMultiplexedProtocol$/;"	kind:namespace	line:29
+TMultiplexedProtocol	../p4src/table.py	/^from thrift.protocol.TMultiplexedProtocol import TMultiplexedProtocol$/;"	kind:namespace	line:28
+TSocket	../p4src/mc.py	/^from thrift.transport import TSocket$/;"	kind:namespace	line:26
+TSocket	../p4src/table.py	/^from thrift.transport import TSocket$/;"	kind:namespace	line:25
+TTransport	../p4src/mc.py	/^from thrift.transport import TTransport$/;"	kind:namespace	line:27
+TTransport	../p4src/table.py	/^from thrift.transport import TTransport$/;"	kind:namespace	line:26
+Thrift	../p4src/mc.py	/^from thrift import Thrift$/;"	kind:namespace	line:25
+Thrift	../p4src/table.py	/^from thrift import Thrift$/;"	kind:namespace	line:24
+UNSHARED	../p4src/table.py	/^UNSHARED = 0$/;"	kind:variable	line:46
+addDir	../p4src/mc.py	/^def addDir():$/;"	kind:function	line:103
+addHost	../p4src/table.py	/^def addHost():$/;"	kind:function	line:61
+addMC	../p4src/mc.py	/^def addMC():$/;"	kind:function	line:171
+ccDSM	../p4src/mc.py	/^from p4_pd_rpc import ccDSM$/;"	kind:namespace	line:18
+ccDSM	../p4src/table.py	/^from p4_pd_rpc import ccDSM$/;"	kind:namespace	line:17
+compilation_database_folder	../.ycm_extra_conf.py	/^compilation_database_folder = ''$/;"	kind:variable	line:74
+config	../p4src/mc.py	/^from ptf import config$/;"	kind:namespace	line:14
+config	../p4src/table.py	/^from ptf import config$/;"	kind:namespace	line:13
+database	../.ycm_extra_conf.py	/^  database = None$/;"	kind:variable	line:79
+database	../.ycm_extra_conf.py	/^  database = ycm_core.CompilationDatabase( compilation_database_folder )$/;"	kind:variable	line:77
+dev_id	../p4src/mc.py	/^dev_id = 0$/;"	kind:variable	line:60
+dev_id	../p4src/table.py	/^dev_id = 0$/;"	kind:variable	line:57
+dev_tgt	../p4src/mc.py	/^dev_tgt = DevTarget_t(dev_id, pipeID);$/;"	kind:variable	line:62
+dev_tgt	../p4src/table.py	/^dev_tgt = DevTarget_t(dev_id, pipeID);$/;"	kind:variable	line:59
+f	../p4src/mc.py	/^f = open(PRE + "memcached.conf")$/;"	kind:variable	line:65
+flags	../.ycm_extra_conf.py	/^flags = [$/;"	kind:variable	line:24
+ip2int	../p4src/table.py	/^def ip2int(ip):$/;"	kind:function	line:51
+mac2v	../p4src/table.py	/^def mac2v(mac):$/;"	kind:function	line:54
+mc	../p4src/mc.py	/^from mc_pd_rpc import mc$/;"	kind:namespace	line:19
+mc	../p4src/table.py	/^from mc_pd_rpc import mc$/;"	kind:namespace	line:18
+mc.py	../p4src/mc.py	1;"	kind:file	line:1
+memPort	../p4src/mc.py	/^memPort = f.readline()$/;"	kind:variable	line:67
+memc	../p4src/mc.py	/^memc = memcache.Client([memcIP + ":" + memPort], debug=0)$/;"	kind:variable	line:68
+memcIP	../p4src/mc.py	/^memcIP = f.readline()$/;"	kind:variable	line:66
+memcache	../p4src/mc.py	/^import memcache$/;"	kind:namespace	line:5
+os	../.ycm_extra_conf.py	/^import os$/;"	kind:namespace	line:18
+pipeID	../p4src/mc.py	/^pipeID = hex_to_i16(0xFFFF)$/;"	kind:variable	line:61
+pipeID	../p4src/table.py	/^pipeID = hex_to_i16(0xFFFF)$/;"	kind:variable	line:58
+portToBitIdx	../p4src/mc.py	/^def portToBitIdx(port):$/;"	kind:function	line:37
+portToPipe	../p4src/mc.py	/^def portToPipe(port):$/;"	kind:function	line:31
+portToPipeLocalId	../p4src/mc.py	/^def portToPipeLocalId(port):$/;"	kind:function	line:34
+set_lag_map	../p4src/mc.py	/^def set_lag_map(indicies):$/;"	kind:function	line:54
+set_port_map	../p4src/mc.py	/^def set_port_map(indicies):$/;"	kind:function	line:47
+socket	../p4src/mc.py	/^import struct, socket$/;"	kind:namespace	line:3
+socket	../p4src/table.py	/^import struct, socket$/;"	kind:namespace	line:3
+struct	../p4src/mc.py	/^import struct, socket$/;"	kind:namespace	line:3
+struct	../p4src/table.py	/^import struct, socket$/;"	kind:namespace	line:3
+sys	../p4src/mc.py	/^import sys$/;"	kind:namespace	line:4
+sys	../p4src/table.py	/^import sys$/;"	kind:namespace	line:4
+table.py	../p4src/table.py	1;"	kind:file	line:1
+toBig	../p4src/mc.py	/^def toBig(v):$/;"	kind:function	line:100
+ycm_core	../.ycm_extra_conf.py	/^import ycm_core$/;"	kind:namespace	line:19

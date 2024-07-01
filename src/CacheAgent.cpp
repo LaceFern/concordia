@@ -1,0 +1,330 @@
+#include "CacheAgent.h"
+
+#include "Cache.h"
+#include "Common.h"
+#include "Connection.h"
+
+uint64_t agentSendDataCounter = 0;
+uint64_t agentSendControlCounter = 0;
+uint64_t agentRecvDataCounter = 0;
+uint64_t agentRecvControlCounter = 0;
+uint64_t agentWriteShared = 0;
+uint64_t agentWriteMissDirty = 0;
+uint64_t agentWriteMissShared = 0;
+uint64_t agentReadMissDirty = 0;
+
+static_assert(sizeof(AgentWrID) == sizeof(uint64_t), "XX");
+CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
+                       Cache *cache, uint32_t machineNR, uint16_t agentID,
+                       uint16_t nodeID)
+    : cCon(cCon), remoteInfo(remoteInfo), cache(cache), machineNR(machineNR),
+      agentID(agentID), nodeID(nodeID), agent(nullptr) {
+
+  mybitmap = 1 << nodeID;
+  agent = new std::thread(&CacheAgent::agentThread, this);
+}
+
+void CacheAgent::agentThread() {
+
+  bindCore(NUMA_CORE_NUM - agentID);
+
+  Debug::notifyInfo("cache agent %d launch!\n", agentID);
+  while (true) {
+    struct ibv_wc wc;
+    RawMessage *m;
+
+    pollWithCQ(cCon->cq, 1, &wc);
+
+    // Debug::notifyError("HHH");
+    switch (int(wc.opcode)) {
+    case IBV_WC_RECV: // control message
+      m = (RawMessage *)cCon->message->getMessage();
+      printRawMessage(m, "agent recv");
+      processSwitchMessage(m);
+      break;
+    case IBV_WC_SEND:
+      assert(false);
+      break;
+    case IBV_WC_RDMA_WRITE:
+      processImmRet(*(AgentWrID *)&wc.wr_id);
+      break;
+    case IBV_WC_RECV_RDMA_WITH_IMM:
+      assert(false);
+      break;
+    default:
+      assert(false);
+    }
+  }
+}
+
+void CacheAgent::processSwitchMessage(RawMessage *m) {
+  if (m->state == RawState::S_SHARED) {
+    if (m->mtype == RawMessageType::R_WRITE_SHARED ||
+        m->mtype == RawMessageType::DIR_2_AGENT_WRITE_SHARED) {
+
+      assert(((m->bitmap >> nodeID) & 1) == 1);
+      assert(((m->bitmap >> m->nodeID) & 1) == 1);
+
+      agentWriteShared++;
+      processWriteSharedInv(m);
+    } else if (m->mtype == RawMessageType::R_WRITE_MISS ||
+               m->mtype == RawMessageType::DIR_2_AGENT_WRITE_MISS_SHARED) {
+
+      assert(((m->bitmap >> nodeID) & 1) == 1);
+      assert(((m->bitmap >> m->nodeID) & 1) == 0);
+
+      agentWriteMissShared++;
+      processWriteMissInvShared(m);
+    } else {
+      assert(false);
+    }
+  } else if (m->state == RawState::S_DIRTY) {
+    if (m->mtype == RawMessageType::R_READ_MISS ||
+        m->mtype == RawMessageType::DIR_2_AGENT_READ_MISS_DIRTY) {
+
+      assert(((m->bitmap >> nodeID) & 1) == 1);
+      assert(((m->bitmap >> m->nodeID) & 1) == 0);
+
+      agentReadMissDirty++;
+      processReadMissInv(m);
+    } else if (m->mtype == RawMessageType::R_WRITE_MISS ||
+               m->mtype == RawMessageType::DIR_2_AGENT_WRITE_MISS_DIRTY) {
+
+      assert(((m->bitmap >> nodeID) & 1) == 1);
+      assert(((m->bitmap >> m->nodeID) & 1) == 0);
+
+      agentWriteMissDirty++;
+      processWriteMissInvDirty(m);
+    } else {
+      assert(false);
+    }
+  } else {
+    assert(false);
+  }
+}
+
+void CacheAgent::processReadMissInv(RawMessage *m) {
+
+#ifdef VERBOSE
+  printf("agent %d read miss inv (%x %d), requster %d\n", this->nodeID,
+         m->dirKey, m->dirNodeID, m->nodeID);
+#endif
+
+  auto line = cache->findLineForAgent(m->dirNodeID, m->dirKey);
+
+#ifdef VERBOSE
+  bool succ = line->getStatus() == CacheStatus::BEING_EVICT ||
+              line->getStatus() == CacheStatus::MODIFIED ||
+              line->getStatus() == CacheStatus::BEING_SHARED ||
+              line->getStatus() == CacheStatus::SHARED;
+  if (!succ) {
+    printf("agent %d read miss inv failed (%x %d), requster %d, %s\n",
+           this->nodeID, m->dirKey, m->dirNodeID, m->nodeID,
+           strCacheStatus(line->getStatus()));
+    assert(false);
+  }
+
+#else
+  assert(line->getStatus() == CacheStatus::BEING_EVICT ||
+         line->getStatus() == CacheStatus::MODIFIED ||
+         line->getStatus() == CacheStatus::BEING_SHARED ||
+         line->getStatus() == CacheStatus::SHARED);
+#endif
+
+  if (line->getStatus() == CacheStatus::BEING_SHARED ||
+      line->getStatus() == CacheStatus::SHARED) { // concurrent read miss
+    AgentWrID w;
+    w.wrId = (uint64_t)line;
+    w.type = AgentPendingReason::NOP;
+
+    m->state = CacheStatus::SHARED;
+    sendData2App(m, line, w.wrId);
+    return;
+  }
+
+  AgentWrID w;
+  w.wrId = (uint64_t)line;
+
+  line->writeEvictLock.wLock();
+#ifdef READ_MISS_DIRTY_TO_DIRTY
+  line->setStatus(CacheStatus::BEING_INVALID);
+#else
+  line->setStatus(CacheStatus::BEING_SHARED);
+#endif
+  line->writeEvictLock.wUnlock();
+
+#ifdef READ_MISS_DIRTY_TO_DIRTY
+  w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
+  sendData2App(m, line, w.wrId);
+#else
+  w.type = AgentPendingReason::WAIT_WRITE_BACK_2_SHARED;
+  sendData2Dir(m, line, RawMessageType::R_READ_MISS, w.wrId);
+
+  w.type = AgentPendingReason::NOP;
+  sendData2App(m, line, w.wrId);
+#endif
+}
+
+void CacheAgent::processWriteMissInvShared(RawMessage *m) {
+
+#ifdef VERBOSE
+  printf("agent %d write miss shared (%x %d), requster %d\n", this->nodeID,
+         m->dirKey, m->dirNodeID, m->nodeID);
+#endif
+
+  auto line = cache->findLineForAgent(m->dirNodeID, m->dirKey);
+
+#ifdef VERBOSE
+  bool succ = (line->getStatus() == CacheStatus::BEING_EVICT ||
+               line->getStatus() == CacheStatus::SHARED ||
+               line->getStatus() == CacheStatus::BEING_SHARED);
+
+  if (!succ) {
+    printf("agent %d write miss shared failed (%x %d), requster %d, %s\n",
+           this->nodeID, m->dirKey, m->dirNodeID, m->nodeID,
+           strCacheStatus(line->getStatus()));
+
+    assert(false);
+  }
+#else
+  assert(line->getStatus() == CacheStatus::BEING_EVICT ||
+         line->getStatus() == CacheStatus::SHARED ||
+         line->getStatus() == CacheStatus::BEING_SHARED);
+#endif
+
+  line->writeEvictLock.wLock();
+  { line->setInvalid(); }
+  line->writeEvictLock.wUnlock();
+
+#ifndef BASELINE
+  sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS);
+#else
+  sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS_BASELINE);
+#endif
+}
+
+void CacheAgent::processWriteMissInvDirty(RawMessage *m) {
+
+#ifdef VERBOSE
+  printf("agent %d write miss dirty (%x %d), requster %d\n", this->nodeID,
+         m->dirKey, m->dirNodeID, m->nodeID);
+#endif
+
+  auto line = cache->findLineForAgent(m->dirNodeID, m->dirKey);
+
+#ifdef VERBOSE
+  if ((!line->getStatus() == CacheStatus::BEING_EVICT) &&
+      (!line->getStatus() == CacheStatus::MODIFIED)) {
+
+    printf("agent %d write miss dirty failed (%x %d), requster %d, %s\n",
+           this->nodeID, m->dirKey, m->dirNodeID, m->nodeID,
+           strCacheStatus(line->getStatus()));
+
+    assert(false);
+  }
+#else
+  assert(line->getStatus() == CacheStatus::BEING_EVICT ||
+         line->getStatus() == CacheStatus::MODIFIED);
+#endif
+
+  line->writeEvictLock.wLock();
+  { line->setStatus(CacheStatus::BEING_INVALID); }
+  line->writeEvictLock.wUnlock();
+
+  AgentWrID w;
+  w.wrId = (uint64_t)line;
+  w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
+
+  sendData2App(m, line, w.wrId);
+}
+
+void CacheAgent::processWriteSharedInv(RawMessage *m) {
+
+#ifdef VERBOSE
+  printf("agent %d write shared (%x %d), requster %d\n", this->nodeID,
+         m->dirKey, m->dirNodeID, m->nodeID);
+#endif
+  auto line = cache->findLineForAgent(m->dirNodeID, m->dirKey);
+
+  if (line->getStatus() != CacheStatus::BEING_EVICT) {
+    assert(line->getStatus() == CacheStatus::SHARED ||
+           line->getStatus() == CacheStatus::BEING_SHARED);
+  }
+
+  line->writeEvictLock.wLock();
+  { line->setInvalid(); }
+  line->writeEvictLock.wUnlock();
+
+#ifndef BASELINE
+  sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED);
+#else
+  sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED_BASELINE);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CacheAgent::sendData2Dir(RawMessage *m, LineInfo *l, RawMessageType type,
+                              uint64_t wrId) {
+
+  agentSendDataCounter++;
+  uint16_t dirID = m->dirKey % NR_DIRECTORY;
+
+  RawImm imm;
+  imm.mtype = type;
+  imm.nodeID = m->nodeID;
+  imm.appID = m->appID;
+  imm.agentNodeID = nodeID;
+
+  rdmaWrite(cCon->data[dirID][m->dirNodeID], (uint64_t)l->data,
+            remoteInfo[m->dirNodeID].dsmBase + DirKey2Addr(m->dirKey),
+            DSM_CACHE_LINE_SIZE, cCon->cacheLKey,
+            remoteInfo[m->dirNodeID].dsmRKey[dirID], imm.imm, true, wrId);
+}
+
+void CacheAgent::sendData2App(RawMessage *m, LineInfo *l, uint64_t wrId) {
+  agentSendDataCounter++;
+  RawImm imm;
+  imm.bitmap = m->bitmap;
+  imm.state = m->state;
+
+  rdmaWrite(cCon->toApp[m->appID][m->nodeID], (uint64_t)l->data, m->destAddr,
+            DSM_CACHE_LINE_SIZE, cCon->cacheLKey,
+            remoteInfo[m->nodeID].appRKey[m->appID], imm.imm, true, wrId);
+}
+
+void CacheAgent::sendAck2App(RawMessage *m, RawMessageType type) {
+
+  agentSendControlCounter++;
+  RawMessage *ack = (RawMessage *)cCon->message->getSendPool();
+
+  *ack = *m;
+
+  ack->qpn = cCon->message->getQPN();
+  ack->mtype = type;
+  ack->mybitmap = mybitmap;
+  ack->is_app_req = 0;
+
+  printRawMessage(ack, "agent send");
+
+  cCon->sendMessage(ack);
+}
+
+///////////////////////////////////////////////////////////////////////////
+void CacheAgent::processImmRet(AgentWrID w) {
+
+  // Async Message :)
+  LineInfo *info = (LineInfo *)(w.wrId & 0xffffffffffff);
+  if (w.type == AgentPendingReason::WAIT_WRITE_BACK_2_SHARED) {
+
+    // if ((info->getTag() & 0xff) == w.fingerprint)
+    info->cas(CacheStatus::BEING_SHARED, CacheStatus::SHARED);
+  } else if (w.type == AgentPendingReason::WAIT_WRITE_BACK_2_INVALID) {
+
+    info->writeEvictLock.wLock();
+    info->setInvalid();
+    info->writeEvictLock.wUnlock();
+
+  } else {
+    assert(w.type == AgentPendingReason::NOP);
+  }
+}
