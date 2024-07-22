@@ -1,3 +1,5 @@
+concordia仓库原名ccDSM！
+
 # 系统版本以及库需求
 交换机：
 
@@ -19,7 +21,9 @@
 
 ccDSM/host：ip、mac、p4 switch对应的port
 
-# p4src中是p4代码
+# 编译运行交换机代码
+进入./p4src文件夹
+
 编译: ./build.sh 时间比较长
 
 运行: sudo -E ./run.sh
@@ -36,18 +40,21 @@ ccDSM/host：ip、mac、p4 switch对应的port
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
 ![shared file error](images/generate_tofino_pd.png)
 
-# cd ccDSM/build; cmake ..; make -j;
+
+# 编译服务器代码
+cd ccDSM/build; cmake ..; make -j;
+
 编译C++代码，时间比较长
 
-# 每台服务器执行ccDSM/arp.sh (需要sudo)
-设置mtu为4200，并加载arp条目
+# 配置服务器网络（每台）
+设置mtu为4200
 
-r1上执行arp-r1.sh，r2-r3上执行arp-r2-3.sh，因为不同服务器网卡name不同
+加载arp条目 (需要sudo)：r1上执行arp-r1.sh，r2-r3上执行arp-r2-3.sh，因为不同服务器网卡name不同
 
-# 设置大页
+# 设置服务器大页（每台）
 在build目录下：sudo bash ../hugepage.sh
 
-#  运行
+# 运行服务器代码（每台）
 服务器export NIC_NAME=XXXX (例如enp65s0np0)
 
 第一步：每次运行都需要初始化p4 switch
@@ -75,6 +82,7 @@ r1上执行arp-r1.sh，r2-r3上执行arp-r2-3.sh，因为不同服务器网卡na
     system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/table.py");
     system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/mc.py");
   }
+```
 
 需要考虑sudo -E导致的ssh问题
 
