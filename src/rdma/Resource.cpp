@@ -37,7 +37,7 @@ bool createContext(RdmaContext *context, uint8_t port, int gidIndex,
     }
 
     dev = deviceList[devIndex];
-    // printf("I open %s :)\n", ibv_get_device_name(dev));
+    printf("I open %s :)\n", ibv_get_device_name(dev));
 
     // get device handle
     ctx = ibv_open_device(dev);
@@ -137,7 +137,6 @@ ibv_mr *createMemoryRegion(uint64_t mm, uint64_t mmSize, RdmaContext *ctx) {
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
                      ibv_cq *recv_cq, RdmaContext *context,
                      uint32_t qpsMaxDepth, uint32_t maxInlineData) {
-
     struct ibv_qp_init_attr_ex attr;
     memset(&attr, 0, sizeof(attr));
 
@@ -157,6 +156,7 @@ bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
     *qp = ibv_create_qp_ex(context->ctx, &attr);
     if (!(*qp)) {
         Debug::notifyError("Failed to create QP");
+        perror("XXXX");
         return false;
     }
 

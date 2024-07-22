@@ -43,7 +43,7 @@ Controller::Controller(uint16_t myNodeID, uint16_t myPort)
   dev_tgt.dev_id = dev_id;
   dev_tgt.dev_pipe_id = pipe_id;
 
-  socket = boost::shared_ptr<TSocket>(new TSocket("10.0.2.125", 9090));
+  socket = boost::shared_ptr<TSocket>(new TSocket("192.168.189.34", 9090));
   transport = boost::shared_ptr<TTransport>(new TBufferedTransport(socket));
   tBinProtocol = boost::shared_ptr<TProtocol>(new TBinaryProtocol(transport));
   protocol = boost::shared_ptr<TProtocol>(

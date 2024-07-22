@@ -1,3 +1,3 @@
 #!/bin/bash
 
-env "PATH=$PATH" "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" bf_switchd --conf-file ./ccDSM.conf --install-dir $SDE_INSTALL/
+export LD_LIBRARY_PATH=$SDE_INSTALL/lib; $SDE_INSTALL/bin/bf_switchd --conf-file ./ccDSM.conf --install-dir $SDE_INSTALL/

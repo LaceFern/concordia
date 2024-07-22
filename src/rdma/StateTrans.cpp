@@ -59,6 +59,7 @@ bool modifyQPtoRTR(struct ibv_qp *qp, uint32_t remoteQPN, uint16_t remoteLid,
 
     if (ibv_modify_qp(qp, &attr, flags)) {
         Debug::notifyError("failed to modify QP state to RTR");
+        perror("XXXX");
         return false;
     }
     return true;

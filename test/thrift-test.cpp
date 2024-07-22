@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     dev_tgt.dev_id = dev_id;
     dev_tgt.dev_pipe_id = pipe_id;
 
-    boost::shared_ptr<TSocket> socket(new TSocket("10.0.2.125", 9090));
+    boost::shared_ptr<TSocket> socket(new TSocket("192.168.189.34", 9090));
     boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
     boost::shared_ptr<TProtocol> protocol__(new TBinaryProtocol(transport));
     boost::shared_ptr<TProtocol> protocol(new TMultiplexedProtocol(protocol__, "ccDSM"));

@@ -20,6 +20,7 @@ table del_fail_tbl {
     actions {
         del_fail_act;
     }
+    default_action: del_fail_act;
 }
 
 control del_dir_control {

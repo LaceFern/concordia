@@ -3,7 +3,7 @@
 import struct, socket
 import sys
 
-PRE = "/home/workspace/ccDSM/"
+PRE = "/home/wq/nfs/ccDSM/"
 
 sys.path.append(PRE + 'p4src/build/gen-py')
 sys.path.append("/home/wq/bf-sde-8.9.1/install/lib/python2.7/site-packages/p4ccDSMutils")
@@ -154,7 +154,7 @@ def addHost():
         client.after_unlock_tbl_table_add_with_drop_act(0, dev_tgt,
                 ccDSM_after_unlock_tbl_match_spec_t(R_UNLOCK_EVICT))
 
-
+        print("XXXX")
         return
 
         # lock_tlb

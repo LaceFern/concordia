@@ -242,8 +242,8 @@ void DSMKeeper::initRouteRule() {
     // serverList.push_back(std::string(ip));
     // free(ip);
     // }
-    system("ssh root@10.0.2.125 /home/workspace/ccDSM/p4src/table.py");
-    system("ssh root@10.0.2.125 /home/workspace/ccDSM/p4src/mc.py");
+    system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/table.py");
+    system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/mc.py");
   }
   barrier("keeper-route-end");
 }

@@ -13,6 +13,7 @@ table add_dir_succ_tbl {
     actions {
         add_dir_succ_act;
     }
+    default_action: add_dir_succ_act;
 }
 
 @pragma stage 10
@@ -20,6 +21,7 @@ table add_dir_fail_tbl {
     actions {
         add_dir_fail_act;
     }
+    default_action: add_dir_fail_act;
 }
 
 

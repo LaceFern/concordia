@@ -4,7 +4,7 @@ import struct, socket
 import sys
 import memcache
 
-PRE = "/home/workspace/ccDSM/"
+PRE = "/home/wq/nfs/ccDSM/"
 
 sys.path.append(PRE + 'p4src/build/gen-py')
 sys.path.append("/home/wq/bf-sde-8.9.1/install/lib/python2.7/site-packages/p4ccDSMutils")

@@ -159,6 +159,7 @@ table init_resubmit_tbl {
     actions {
         init_resubmit_acts;
     }
+    default_action: init_resubmit_acts;
 }
 
 control process_resubmit_unlock {

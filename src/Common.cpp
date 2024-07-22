@@ -19,12 +19,23 @@ void bindCore(uint16_t core) {
     }
 }
 
+std::string get_nic_name() {
+    auto nic_name = getenv("NIC_NAME");
+    if (nic_name == nullptr) {
+        printf("you should set a env NIC_NAME!\n");
+        exit(-1);
+    } else {
+        printf("NIC_NAME: %s\n", nic_name);
+    }
+    return std::string(nic_name);
+}
+
 char *getIP() {
     struct ifreq ifr;
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, "ens2", IFNAMSIZ - 1);
+    strncpy(ifr.ifr_name, get_nic_name().c_str(), IFNAMSIZ - 1);
 
     ioctl(fd, SIOCGIFADDR, &ifr);
     close(fd);
@@ -37,7 +48,7 @@ char *getMac() {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, "ens2", IFNAMSIZ - 1);
+    strncpy(ifr.ifr_name, get_nic_name().c_str(), IFNAMSIZ - 1);
 
     ioctl(fd, SIOCGIFHWADDR, &ifr);
     close(fd);

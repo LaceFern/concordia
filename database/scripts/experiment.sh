@@ -53,7 +53,7 @@ run_tpcc () {
   for dist_ratio in ${dist_ratios[@]}; do
     cd ${bin_dir}
     ./restartMemc.sh
-    ssh 10.0.2.125 "bash /home/workspace/ccDSM/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash /home/wq/nfs/ccDSM/p4src/auto_run.sh >> /dev/null"
     cd -
     launch ${dist_ratio}
   done
