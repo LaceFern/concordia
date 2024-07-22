@@ -1,3 +1,17 @@
+#
+bf_switchd指令什么时候用？
+
+
+# 系统版本以及库需求
+交换机：
+  tofino SDE版本: bf-sde-8.2.0 (bf-sde-8.9.1实测也行)
+服务器：
+  Ubuntu 22.04.4 LTS
+  ofed版本：MLNX_OFED_LINUX-4.7-3.2.9.0 (MLNX_OFED_LINUX-23.10-2.1.3.1实测也行)
+  libmemcached：1.0.18
+  memcached：1.6.14
+  Thrift：0.10.0
+
 # 系统相关的配置文件
 
 ccDSM/host：ip、mac、p4 switch对应的port
@@ -8,6 +22,14 @@ ccDSM/host：ip、mac、p4 switch对应的port
 
 运行并enable port： sudo -E ./auto_run.sh
 auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目
+
+注意：
+
+1. 若出现下图generate_tofino_pd报错，可能是SDE版本不对，没能在指定位置找到相应文件
+![no module error](images/generate_tofino_pd.png)
+
+2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
+![shared file error](images/generate_tofino_pd.png)
 
 # cd ccDSM/build; cmake ..; make -j;
 编译C++代码 时间比较长
