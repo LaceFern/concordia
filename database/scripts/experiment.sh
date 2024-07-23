@@ -8,10 +8,10 @@ set -o nounset
 # hosts_file specify a list of host names and port numbers, with the host names in the first column
 hosts_file="../tpcc/config.txt"
 # specify your directory for log files
-output_dir="/home/wq_workspace/ccDSM/build/"
+output_dir="/home/zxy_workspace/ccDSM/build/"
 
 # working environment
-proj_dir="/home/wq_workspace/ccDSM/"
+proj_dir="/home/zxy_workspace/ccDSM/"
 bin_dir="${proj_dir}/build"
 script_dir="{proj_dir}/database/scripts"
 ssh_opts="-o StrictHostKeyChecking=no"
@@ -53,7 +53,7 @@ run_tpcc () {
   for dist_ratio in ${dist_ratios[@]}; do
     cd ${bin_dir}
     ./restartMemc.sh
-    ssh 192.168.189.34 "bash /home/wq/nfs/ccDSM/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash /home/zxy/nfs/DSM_prj/concordia/ccDSM/p4src/auto_run.sh >> /dev/null"
     cd -
     launch ${dist_ratio}
   done

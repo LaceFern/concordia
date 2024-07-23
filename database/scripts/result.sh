@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script extract the running results of tpcc benchmark and write to OUTFILE
 OUTFILE=result.out
-INPUTDIR=/home/wq_workspace/DSM_/gam-master/database/
+INPUTDIR=/home/zxy_workspace/DSM_/gam-master/database/
 INFILE=tpcc.log
 
 echo "" > $OUTFILE

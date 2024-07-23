@@ -9,7 +9,7 @@ ps aux |grep memcac |grep -v grep | awk '{print $2}'|xargs sudo kill -9
 sleep 1
 
 # launch memcached
-memcached -u wq -l ${addr} -p  ${port} -c 10000 -d -P /tmp/memcached.pid.wq
+memcached -u zxy -l ${addr} -p  ${port} -c 10000 -d -P /tmp/memcached.pid.zxy
 sleep 3
 
 # init 

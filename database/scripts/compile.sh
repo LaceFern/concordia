@@ -1,4 +1,4 @@
-PROJ_DIR=/home/wq_workspace/DSM_/gam-master/
+PROJ_DIR=/home/zxy_workspace/DSM_/gam-master/
 GAM_CORE=${PROJ_DIR}/src
 TPCC_DIR=${PROJ_DIR}/database/tpcc
 TEST_DIR=${PROJ_DIR}/database/test

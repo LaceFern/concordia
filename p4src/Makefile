@@ -1,6 +1,6 @@
 CC=gcc -std=c99
 CXX=g++ -std=c++11
-FLAGS= -I/home/wq/bf-sde-8.9.1/install/include -I../ -Igen-cpp  -I. -fPIC -DPIC -O2
+FLAGS= -I/home/zxy/bf-sde-8.9.1/install/include -I../ -Igen-cpp  -I. -fPIC -DPIC -O2
 SRC=$(wildcard thrift-src/*.cpp gen-cpp/*.cpp)
 OBJS=$(patsubst %.cpp, %.o, $(SRC))
 PD_C=src/pd.c
