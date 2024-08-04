@@ -46,9 +46,17 @@ class CacheAgent {
     uint16_t agentID;
     uint16_t nodeID;
 
+    uint16_t queueID;
+
     std::thread *agent;
 
+    std::thread *queueTh;
+    std::thread *processTh;
+
     void agentThread();
+
+    void processThread();
+    void queueThread();
 
     void processSwitchMessage(RawMessage *m);
     void sendAck2App(RawMessage *m, RawMessageType type);

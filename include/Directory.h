@@ -54,10 +54,16 @@ private:
   uint16_t dirID;
   uint16_t nodeID;
 
+  uint16_t queueID;
+
   Controller *controller;
   SwitchManager *switchManager;
 
   std::thread *dirTh;
+
+  std::thread *queueTh;
+  std::thread *processTh;
+  std::thread *countTh;
 
   std::unordered_map<uint64_t, BlockInfo *> dir_map;
   std::unordered_map<uint64_t, uint16_t> primitive_lock_table;
@@ -65,6 +71,10 @@ private:
   GlobalAllocator *chunckAlloc;
 
   void dirThread();
+
+  void processThread();
+  void queueThread();
+  void countThread();
 
   void processSwitchMiss(RawMessage *m);
   void processSwitchHit(RawMessage *m);

@@ -4,6 +4,8 @@
 #include "Common.h"
 #include "Connection.h"
 
+#include "agent_stat.h"
+
 uint64_t agentSendDataCounter = 0;
 uint64_t agentSendControlCounter = 0;
 uint64_t agentRecvDataCounter = 0;
@@ -21,7 +23,87 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
       agentID(agentID), nodeID(nodeID), agent(nullptr) {
 
   mybitmap = 1 << nodeID;
-  agent = new std::thread(&CacheAgent::agentThread, this);
+
+  // agent = new std::thread(&CacheAgent::agentThread, this);
+
+  if(agentID < agent_stats_inst.cache_queue_num){
+    queueID = agent_stats_inst.dir_queue_num + agentID;
+    agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
+
+    processTh = new std::thread(&CacheAgent::processThread, this);
+    agent = new std::thread(&CacheAgent::queueThread, this);
+  }
+  else{
+    agent = new std::thread(&CacheAgent::agentThread, this);
+  }
+}
+
+void CacheAgent::queueThread() {
+  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  Debug::notifyInfo("cache queue %d launch!\n", agentID);
+
+  while(true){
+    struct ibv_wc wc;
+    pollWithCQ(cCon->cq, 1, &wc);
+    uint64_t now_time_tsc = agent_stats_inst.rdtsc();
+    while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
+    std::atomic_thread_fence(std::memory_order_release);
+    agent_stats_inst.update_cache_recv_count(queueID);
+  }
+}
+
+void CacheAgent::processThread() {
+  bindCore(NUMA_CORE_NUM - agentID);
+  Debug::notifyInfo("cache pure %d launch!\n", agentID);
+
+  while (true) {
+    queue_entry entry = agent_stats_inst.queues[queueID]->pop();
+    std::atomic_thread_fence(std::memory_order_acquire);
+    uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
+    (void)waiting_time;
+    ibv_wc &wc = entry.wc;
+
+    agent_stats_inst.start_record_multi_sys_thread(queueID);
+    MULTI_SYS_THREAD_OP res_op = MULTI_SYS_THREAD_OP::NONE;
+    
+    RawMessage *m;
+    switch (int(wc.opcode)) {
+    case IBV_WC_RECV: // control message
+      res_op == MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
+
+      m = (RawMessage *)cCon->message->getMessage();
+      printRawMessage(m, "agent recv");
+      processSwitchMessage(m);
+      break;
+    case IBV_WC_SEND:
+      assert(false);
+      break;
+    case IBV_WC_RDMA_WRITE:
+      processImmRet(*(AgentWrID *)&wc.wr_id);
+      break;
+    case IBV_WC_RECV_RDMA_WITH_IMM:
+      assert(false);
+      break;
+    default:
+      assert(false);
+    }
+
+
+    if (res_op != MULTI_SYS_THREAD_OP::NONE && agent_stats_inst.is_start()) {
+      agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
+      agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
+      // if (res_op == MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE) {
+      //   std::vector<int> pending_msg_numbers = w->get_all_client_pending_msg_number();
+      //   for (size_t i = 0;i < pending_msg_numbers.size();i++) {
+      //     printf("%d ", pending_msg_numbers[i]);
+      //   }
+      //   printf("\n");
+      // }
+    }
+    if(agent_stats_inst.is_start()){
+      agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
+    }
+  }
 }
 
 void CacheAgent::agentThread() {

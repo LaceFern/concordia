@@ -5,6 +5,8 @@
 #include "RecvImmBatch.h"
 #include "SwitchManager.h"
 
+#include "agent_stat.h"
+
 // #include <gperftools/profiler.h>
 
 #ifndef BASELINE
@@ -58,7 +60,20 @@ Directory::Directory(DirectoryConnection *dCon, RemoteConnection *remoteInfo,
   // // switchManager->addAll(machineNR);
   // Debug::notifyInfo("end start insert table");
 
-  dirTh = new std::thread(&Directory::dirThread, this);
+  // dirTh = new std::thread(&Directory::dirThread, this);
+
+  if(dirID < agent_stats_inst.dir_queue_num){
+    queueID = dirID;
+    agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
+    // agent_stats_inst.safe_queues[queueID] = new SafeQueue<queue_entry>();
+
+    // countTh = new std::thread(&Directory::countThread, this);
+    processTh = new std::thread(&Directory::processThread, this);
+    dirTh = new std::thread(&Directory::queueThread, this);
+  }
+  else{
+    dirTh = new std::thread(&Directory::dirThread, this);
+  }
 }
 
 Directory::~Directory() {
@@ -83,6 +98,267 @@ void Directory::init_switch() {
   }
 
   Debug::notifyInfo("init switch succ");
+}
+
+
+// void Directory::queueThread() {
+//   bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+//   Debug::notifyInfo("dir queue %d launch!\n", dirID);
+
+//   while(true){
+//     struct ibv_wc wc;
+//     pollWithCQ(dCon->cq, 1, &wc);
+
+//     // printf("checkpoint 0 on dir queue %d: receive a packet!\n", dirID);
+
+//     uint64_t now_time_tsc = agent_stats_inst.rdtsc();
+//     while (!((agent_stats_inst.queues[queueID])->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
+
+//     queue_entry entry = (agent_stats_inst.queues[queueID])->pop();
+//     // queue_entry entry = (agent_stats_inst.safe_queues[queueID])->dequeue();
+//     // printf("checkpoint 0 on dir pure %d: process a packet!\n", dirID);
+
+//     uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
+//     (void)waiting_time;
+//     // ibv_wc &wc = entry.wc;
+//     wc = entry.wc;
+
+//     agent_stats_inst.start_record_multi_sys_thread(queueID);
+//     MULTI_SYS_THREAD_OP res_op = MULTI_SYS_THREAD_OP::NONE;
+
+
+//     switch (int(wc.opcode)) {
+//       case IBV_WC_RECV: // control message
+//       {
+//         res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
+
+//         dirRecvControlCounter++;
+//         auto m = (RawMessage *)dCon->message->getMessage();
+//         printRawMessage(m, "dir recv");
+
+//         if (m->state == RawState::S_UNDEFINED ||
+//             m->mtype == RawMessageType::R_UNLOCK ||
+//             m->mtype == RawMessageType::R_READ_MISS_UNLOCK ||
+//             m->mtype == RawMessageType::R_UNLOCK_EVICT) {
+//           processSwitchMiss(m);
+//         } else if (m->mtype >= RawMessageType::ADD_DIR &&
+//                  m->mtype <= RawMessageType::ADD_DIR_SUCC) {
+//           processOwnershipChange(m);
+//         }
+// #ifdef BASELINE
+//         else if (m->mtype == RawMessageType::AGENT_ACK_WRITE_MISS_BASELINE ||
+//                 m->mtype == RawMessageType::AGENT_ACK_WRITE_SHARED_BASELINE) {
+//           processAgentAckBaseline(m);
+//         }
+// #endif
+//         else {
+//           processSwitchHit(m);
+//         }
+//         break;
+//       }
+//       case IBV_WC_RDMA_WRITE: {
+//         break;
+//       }
+//       case IBV_WC_RECV_RDMA_WITH_IMM: {
+//         res_op = MULTI_SYS_THREAD_OP::PROCESS_PENDING_IN_HOME;
+
+//         dirRecvDataCounter++;
+//         RawImm imm = *(RawImm *)(&wc.imm_data);
+
+//         if (imm.mtype == RawMessageType::R_READ_MISS) {
+
+//           RawMessage m;
+//           m.nodeID = imm.nodeID;
+//           m.appID = imm.appID;
+//           m.state = RawState::S_UNDEFINED;
+//           sendAck2AppByPassSwitch(&m,
+//                                 RawMessageType::N_DIR_ACK_APP_READ_MISS_DIRTY);
+//         }
+//         break;
+//       }
+//       default:
+//         assert(false);
+//     }
+
+
+//     if (res_op != MULTI_SYS_THREAD_OP::NONE && agent_stats_inst.is_start()) {
+//       agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
+//       agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
+//       // if (res_op == MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE) {
+//       //   std::vector<int> pending_msg_numbers = w->get_all_client_pending_msg_number();
+//       //   for (size_t i = 0;i < pending_msg_numbers.size();i++) {
+//       //     printf("%d ", pending_msg_numbers[i]);
+//       //   }
+//       //   printf("\n");
+//       // }
+//     }
+//     if(agent_stats_inst.is_start()){
+//       agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
+//     }
+//   }
+// }
+
+// void Directory::processThread() {}
+
+void Directory::countThread() {
+  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  Debug::notifyInfo("dir count %d launch!\n", dirID);
+
+  uint64_t start, end;
+  double cpu_frequency = 2.2; // Assume CPU frequency in GHz
+  uint64_t cycles_per_second = static_cast<uint64_t>(cpu_frequency * 1e9);
+
+  while (true) {
+      start = agent_stats_inst.rdtsc();
+      uint64_t elapsed_cycles = 0;
+      // Busy-wait loop until approximately 1 second has passed
+      do {
+          end = agent_stats_inst.rdtsc();
+          elapsed_cycles = end - start;
+      } while (elapsed_cycles < cycles_per_second);
+      double elapsed_seconds = elapsed_cycles / (cpu_frequency * 1e9);
+      
+      printf("\ndir queue %d receives %d packets\n", dirID, agent_stats_inst.get_home_recv_count(queueID));
+      printf("dir pure %d process %d packets\n", dirID, agent_stats_inst.get_home_process_count(queueID));
+      
+      printf("dir queue %d op = %d\n", dirID, agent_stats_inst.debug_info_1);
+      printf("dir queue %d queueid = %d\n", dirID, agent_stats_inst.debug_info_5);
+      printf("dir pure %d op = %d (%d, %d)\n", dirID, agent_stats_inst.debug_info_2, agent_stats_inst.debug_info_3, agent_stats_inst.debug_info_4);
+      printf("dir pure %d branch = %d\n", dirID, agent_stats_inst.debug_info);
+      printf("dir pure %d queueid = %d\n", dirID, agent_stats_inst.debug_info_6);
+  }
+}
+
+void Directory::queueThread() {
+  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  Debug::notifyInfo("dir queue %d launch!\n", dirID);
+
+  printf("IBV_WC_RECV = %d, IBV_WC_RDMA_WRITE = %d, IBV_WC_RECV_RDMA_WITH_IMM = %d", 
+      IBV_WC_RECV, IBV_WC_RDMA_WRITE, IBV_WC_RECV_RDMA_WITH_IMM);
+
+  while(true){
+    struct ibv_wc wc;
+    pollWithCQ(dCon->cq, 1, &wc);
+
+    // printf("checkpoint 0 on dir queue %d: receive a packet!\n", dirID);
+
+    uint64_t now_time_tsc = agent_stats_inst.rdtsc();
+    // agent_stats_inst.debug_info_1 = wc.opcode;
+    // agent_stats_inst.debug_info_5 = queueID;
+    struct queue_entry entry;
+    entry.wc = wc;
+    entry.starting_point = now_time_tsc;
+    (agent_stats_inst.queues[queueID])->push(entry);
+    std::atomic_thread_fence(std::memory_order_release);
+    // while (!((agent_stats_inst.queues[queueID])->try_push(entry))) ;
+    // while (!((agent_stats_inst.queues[queueID])->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
+    agent_stats_inst.update_home_recv_count(queueID);
+    // (agent_stats_inst.safe_queues[queueID])->enqueue(queue_entry{ wc, now_time_tsc, 0 });
+  }
+}
+
+void Directory::processThread() {
+  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - dirID);
+  Debug::notifyInfo("dir pure %d launch!!!", dirID);
+
+  while (true) {
+    struct queue_entry entry = (agent_stats_inst.queues[queueID])->pop();
+    std::atomic_thread_fence(std::memory_order_acquire);
+    // queue_entry entry = (agent_stats_inst.queues[queueID])->pop();
+    agent_stats_inst.update_home_process_count(queueID);
+    // queue_entry entry = (agent_stats_inst.safe_queues[queueID])->dequeue();
+    // printf("checkpoint 0 on dir pure %d: process a packet!\n", dirID);
+
+    uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
+    (void)waiting_time;
+    // ibv_wc &wc = entry.wc;
+    struct ibv_wc wc = entry.wc;
+
+    agent_stats_inst.start_record_multi_sys_thread(queueID);
+    MULTI_SYS_THREAD_OP res_op = MULTI_SYS_THREAD_OP::NONE;
+
+    // agent_stats_inst.debug_info_6 = queueID;
+    // agent_stats_inst.debug_info_2 = wc.opcode;
+    // agent_stats_inst.debug_info = 0;
+    // agent_stats_inst.debug_info_3 = (int(wc.opcode) == IBV_WC_RECV);
+    // agent_stats_inst.debug_info_4 = IBV_WC_RECV;
+    switch (int(wc.opcode)) {
+      case IBV_WC_RECV: // control message
+      {
+        res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
+
+        dirRecvControlCounter++;
+        auto m = (RawMessage *)dCon->message->getMessage();
+        printRawMessage(m, "dir recv");
+
+        if (m->state == RawState::S_UNDEFINED ||
+            m->mtype == RawMessageType::R_UNLOCK ||
+            m->mtype == RawMessageType::R_READ_MISS_UNLOCK ||
+            m->mtype == RawMessageType::R_UNLOCK_EVICT) {
+          // agent_stats_inst.debug_info = 1;
+          processSwitchMiss(m);
+        } else if (m->mtype >= RawMessageType::ADD_DIR &&
+                 m->mtype <= RawMessageType::ADD_DIR_SUCC) {
+          // agent_stats_inst.debug_info = 2;
+          processOwnershipChange(m);
+        }
+#ifdef BASELINE
+        else if (m->mtype == RawMessageType::AGENT_ACK_WRITE_MISS_BASELINE ||
+                m->mtype == RawMessageType::AGENT_ACK_WRITE_SHARED_BASELINE) {
+          processAgentAckBaseline(m);
+        }
+#endif
+        else {
+          // agent_stats_inst.debug_info = 3;
+          processSwitchHit(m);
+        }
+        break;
+      }
+      case IBV_WC_RDMA_WRITE: {
+        // agent_stats_inst.debug_info = 4;
+        break;
+      }
+      case IBV_WC_RECV_RDMA_WITH_IMM: {
+        res_op = MULTI_SYS_THREAD_OP::PROCESS_PENDING_IN_HOME;
+
+        dirRecvDataCounter++;
+        RawImm imm = *(RawImm *)(&wc.imm_data);
+
+        if (imm.mtype == RawMessageType::R_READ_MISS) {
+          // agent_stats_inst.debug_info = 5;
+          RawMessage m;
+          m.nodeID = imm.nodeID;
+          m.appID = imm.appID;
+          m.state = RawState::S_UNDEFINED;
+          sendAck2AppByPassSwitch(&m,
+                                RawMessageType::N_DIR_ACK_APP_READ_MISS_DIRTY);
+        }
+        else{
+          // agent_stats_inst.debug_info = 6;
+        }
+        break;
+      }
+      default:
+        // agent_stats_inst.debug_info = 7;
+        assert(false);
+    }
+
+
+    if (res_op != MULTI_SYS_THREAD_OP::NONE && agent_stats_inst.is_start()) {
+      agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
+      agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
+      // if (res_op == MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE) {
+      //   std::vector<int> pending_msg_numbers = w->get_all_client_pending_msg_number();
+      //   for (size_t i = 0;i < pending_msg_numbers.size();i++) {
+      //     printf("%d ", pending_msg_numbers[i]);
+      //   }
+      //   printf("\n");
+      // }
+    }
+    if(agent_stats_inst.is_start()){
+      agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
+    }
+  }
 }
 
 void Directory::dirThread() {

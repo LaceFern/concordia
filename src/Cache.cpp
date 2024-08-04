@@ -6,6 +6,8 @@
 #include "DSM.h"
 #include "HugePageAlloc.h"
 
+#include "agent_stat.h"
+
 thread_local uint64_t Cache::evict_time = 0;
 thread_local int Cache::iId(-1);
 thread_local ThreadConnection *Cache::iCon(nullptr);
@@ -543,9 +545,16 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_READ_MISS, addr.nodeID, dirKey);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
+
+  // COMMENT: why need to receive other packets? -- home node inform request node that cache node will send data to request node (two packets need receiving)
+  // COMMENT: why need to unlock? --inform the home node that the current CC txn is end; the lock is txn atomic lock, instead of app lock
+  agent_stats_inst.start_record_app_thread(addr.addr);
 
   // uint8_t dirID = dirKey % NR_DIRECTORY;
   if (wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
@@ -660,9 +669,15 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_WRITE_MISS, addr.nodeID, dirKey);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
+
+  // TODO: why need to receive other packets? why unlock? 
+  agent_stats_inst.start_record_app_thread(addr.addr);
 
   // uint8_t dirID = dirKey % NR_DIRECTORY;
   if (wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
@@ -978,9 +993,14 @@ bool Cache::r_lock(const GlobalAddress &addr, uint32_t size) {
 
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_LOCK, addr.nodeID, dirKey,
                   false);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
+
+  agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_LOCK);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   RawMessage *ack = (RawMessage *)iCon->message->getMessage();
   assert(wc.opcode == IBV_WC_RECV);
 
@@ -1026,13 +1046,18 @@ void Cache::r_unlock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue un lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_UNLOCK, addr.nodeID,
                   dirKey, false);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_UNLOCK);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   if (dirKey) {
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
     assert(wc.opcode == IBV_WC_RECV);
   }
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_UNLOCK);
+  
+  agent_stats_inst.start_record_app_thread(addr.addr);
 }
 
 bool Cache::w_lock(const GlobalAddress &addr, uint32_t size) {
@@ -1050,9 +1075,14 @@ bool Cache::w_lock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue w lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_LOCK, addr.nodeID, dirKey,
                   false);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
+
+  agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_LOCK);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   RawMessage *ack = (RawMessage *)iCon->message->getMessage();
   assert(wc.opcode == IBV_WC_RECV);
 
@@ -1097,13 +1127,18 @@ void Cache::w_unlock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue un lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_UNLOCK, addr.nodeID,
                   dirKey, false);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_UNLOCK);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   if (dirKey) {
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
     assert(wc.opcode == IBV_WC_RECV);
   }
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_UNLOCK);
+  
+  agent_stats_inst.start_record_app_thread(addr.addr);
 }
 
 GlobalAddress Cache::malloc(size_t size, bool align) {

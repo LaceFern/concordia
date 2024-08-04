@@ -21,6 +21,8 @@ concordia仓库原名ccDSM！
   
   Thrift：0.10.0
 
+  如果要使用agent_stat的文件打印功能，需要执行 sudo apt-get install libboost-all-dev
+
 # 系统相关的配置文件
 
 ccDSM/host：ip、mac、p4 switch对应的port
@@ -53,7 +55,7 @@ cd ccDSM/build; cmake ..; make -j;
 编译C++代码，时间比较长
 
 # 配置服务器网络（每台）
-设置mtu为4200：sudo ifconfig enp65s0np0 mtu 4200
+设置mtu为4200：sudo ifconfig enp65s0np0 mtu 4200 (已经写在arp-xxx.sh中了)
 
 P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
@@ -73,11 +75,27 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 第三步：sudo -E ./benchmark XXXX (需要sudo是因为使用了raw packet，需要root权限)
 
-*2机*例子：
+*2机*例子，原版代码：
 
 在r1上运行sudo  -E  ./benchmark 2 4 50 50 50；
 
 在r2上运行sudo  -E  ./benchmark 2 4 50 50 50；
+
+*2机*例子，添加agent_stat，未开启目标链路测试：
+
+在r1上运行sudo  -E  ./highpara_benchmark --no_node 2 --no_thread 1 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
+
+在r2上运行sudo  -E  ./highpara_benchmark --no_node 2 --no_thread 1 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
+
+*4机*例子，添加agent_stat，开启目标链路测试：
+
+在r1上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 0 --result_dir /home/zxy/concordia_result
+
+在r2上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 1 --result_dir /home/zxy/concordia_result
+
+在r3上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
+
+在r4上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
 
 注意：
 
@@ -98,3 +116,16 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 #  自动化运行
 查看script/benchmark.sh，还没仔细看，应该需要看看权限问题，使用mpi跑
+
+# 测试记录
+*2机*例子，添加agent_stat，未开启目标链路测试：
+
+app thread: 24 (×), 16 (√)
+
+NR_CACHE_AGENT：4 (√)
+
+NR_DIRECTORY：4 (√)
+
+性能存疑：sys thread for cache 中的包比sys thread for dir 中的包更容易阻塞？包数量类似，可能是处理时间不同的原因，需要看特定链路的分析结果
+
+草多sys thread还有问题
