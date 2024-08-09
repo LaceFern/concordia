@@ -153,9 +153,9 @@ void init_trace(int nodeID, int threadID) {
   }
 
 
-  if (threadID == 0) {
-    agent_stats_inst.print_valid_gaddr();
-  }
+  // if (threadID == 0) {
+  //   agent_stats_inst.print_valid_gaddr();
+  // }
   /******** MY CODE ENDS ********/
   /***********************************/
 

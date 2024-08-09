@@ -51,7 +51,7 @@ void CacheAgent::queueThread() {
     while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
     std::atomic_thread_fence(std::memory_order_release);
     // agent_stats_inst.update_cache_recv_count(queueID);
-    agent_stats_inst.update_cache_recv_count(sysID);
+    // agent_stats_inst.update_cache_recv_count(sysID);
   }
 }
 
@@ -78,6 +78,7 @@ void CacheAgent::processThread() {
 
       if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
         res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
+        agent_stats_inst.update_cache_recv_count(sysID);
       }
 
       printRawMessage(m, "agent recv");
@@ -124,7 +125,7 @@ void CacheAgent::agentThread() {
     RawMessage *m;
 
     pollWithCQ(cCon->cq, 1, &wc);
-    agent_stats_inst.update_cache_recv_count(sysID);
+    // agent_stats_inst.update_cache_recv_count(sysID);
 
     // printf("checkpoing 1 in cache agent %d\n", agentID);
     
@@ -132,6 +133,11 @@ void CacheAgent::agentThread() {
     switch (int(wc.opcode)) {
     case IBV_WC_RECV: // control message
       m = (RawMessage *)cCon->message->getMessage();
+
+      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+        agent_stats_inst.update_cache_recv_count(sysID);
+      }
+
       printRawMessage(m, "agent recv");
       processSwitchMessage(m);
       break;

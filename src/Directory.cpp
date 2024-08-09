@@ -256,7 +256,7 @@ void Directory::queueThread() {
     std::atomic_thread_fence(std::memory_order_release);
     // while (!((agent_stats_inst.queues[queueID])->try_push(entry))) ;
     // while (!((agent_stats_inst.queues[queueID])->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
-    agent_stats_inst.update_home_recv_count(sysID);
+    // agent_stats_inst.update_home_recv_count(sysID);
     // agent_stats_inst.update_home_recv_count(queueID);
     // (agent_stats_inst.safe_queues[queueID])->enqueue(queue_entry{ wc, now_time_tsc, 0 });
   }
@@ -296,6 +296,7 @@ void Directory::processThread() {
 
         if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
           res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
+          agent_stats_inst.update_home_recv_count(sysID);
         }
 
         printRawMessage(m, "dir recv");
@@ -379,13 +380,17 @@ void Directory::dirThread() {
   while (true) {
     struct ibv_wc wc;
     pollWithCQ(dCon->cq, 1, &wc);
-    agent_stats_inst.update_home_recv_count(sysID);
 
     switch (int(wc.opcode)) {
     case IBV_WC_RECV: // control message
     {
       dirRecvControlCounter++;
       auto m = (RawMessage *)dCon->message->getMessage();
+
+      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+        agent_stats_inst.update_home_recv_count(sysID);
+      }
+
       printRawMessage(m, "dir recv");
 
       if (m->state == RawState::S_UNDEFINED ||
