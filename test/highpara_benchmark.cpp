@@ -28,6 +28,7 @@ int cache_rw = 0;
 int request_rw = 0;
 int breakdown_times = 1024;//1024;//204800;
 const char *result_directory = "gam_result";
+uint64_t breakdown_size = DSM_CACHE_LINE_SIZE * breakdown_times;
 /******** MY CODE ENDS ********/
 /***********************************/
 
@@ -110,7 +111,7 @@ void init_trace(int nodeID, int threadID) {
   for (int op = 0; op < breakdown_times; ++op) {
     // shared addr
     GlobalAddress addr;
-    addr.nodeID = nodeNR;
+    addr.nodeID = agent_stats_inst.home_node_id;
     addr.addr = sharingStart + sharingSize + op * DSM_CACHE_LINE_SIZE;
     traces_breakdown[op] = addr;
   }
@@ -142,23 +143,18 @@ void init_trace(int nodeID, int threadID) {
 
   /***********************************/
   /******** MY CODE STARTS ********/
-  for (int i = OP_NUMS; i < OP_NUMS + breakdown_times; ++i) {
-    bool isLocality = (rand_r(&seed) % 100) < locality;
-    if (isLocality) {
-      uint64_t offset = next.addr % 4096;
-      if (offset + OBJ_SIZE + OBJ_SIZE < 4096) {
-        next.addr += OBJ_SIZE;
-      } else {
-        next.addr -= offset;
-      }
-    } else {
-      next = traces[rand_r(&seed) % STEPS];
-    }
-    thread_access_[i] = next;
+  for (int i = 0; i < breakdown_times; ++i) {
+    next = traces_breakdown[i];
+    thread_access_[OP_NUMS + i] = next;
 
-    if (id == 0) {
+    if (threadID == 0) {
       agent_stats_inst.push_valid_gaddr(next.addr);
     }
+  }
+
+
+  if (threadID == 0) {
+    agent_stats_inst.print_valid_gaddr();
   }
   /******** MY CODE ENDS ********/
   /***********************************/
@@ -180,7 +176,7 @@ void Run_cache(int nodeID, int threadID, const std::string &prefix) {
     // fflush(stdout);
 
     if (is_cache == 1 && threadID == 0) {
-        GlobalAddress to_access_breakdown = thread_access_[STEPS + op];
+        GlobalAddress to_access_breakdown = thread_access_[OP_NUMS + op];
 
         switch (cache_rw) {
         case 0: {
@@ -223,7 +219,7 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
   uint8_t to[OBJ_SIZE];
   timespec s, e;
 
-  for (int op = 0; op < OP_NUMS; ++op) {
+  for (int op = 0; op < OP_NUMS && count_4_breakdown < breakdown_times; ++op) {
     /***********************************/
     /******** MY CODE STARTS ********/
     if (is_request == 1 && prefix != "warmup" && threadID == 0) {
@@ -235,12 +231,13 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
       if (count_4_nobreakdown == thres_4_nobreakdown) {
         // printf("i = %d\n", i);
         count_4_nobreakdown = 0;
-        GlobalAddress to_access_breakdown = thread_access_[STEPS + count_4_breakdown];
+        GlobalAddress to_access_breakdown = thread_access_[OP_NUMS + count_4_breakdown];
         count_4_breakdown++;
 
         // TODO: thread_access_[op] --> to_access_breakdown
         switch (request_rw) {
         case 0: {
+          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->Try_RLock(to_access_breakdown, OBJ_SIZE);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
@@ -256,17 +253,22 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
         }
 
         case 1: {
+          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->Try_WLock(to_access_breakdown, OBJ_SIZE);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
+          // printf("checkpoint 1.2 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
 
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->write(to_access_breakdown, OBJ_SIZE, from);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_WRITE_RETURN);
+          // printf("checkpoint 1.3 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
 
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->UnLock(to_access_breakdown, OBJ_SIZE);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
+          // printf("checkpoint 1.4 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+
           break;
         }
         default: {
@@ -469,7 +471,9 @@ void parserArgs(int argc, char **argv) {
       request_rw = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--is_home") == 0) {
       is_home = atoi(argv[++i]);
-    } else if (strcmp(argv[i], "--breakdown_times") == 0) {
+    } else if (strcmp(argv[i], "--home_node_id") == 0) {
+      agent_stats_inst.home_node_id = atoi(argv[++i]);
+    }else if (strcmp(argv[i], "--breakdown_times") == 0) {
       breakdown_times = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--result_dir") == 0) {
       result_directory = argv[++i];  //0..100
@@ -501,6 +505,10 @@ int main(int argc, char **argv) {
   agent_stats_inst.is_cache = is_cache;
   agent_stats_inst.is_request = is_request;
   agent_stats_inst.is_home = is_home;
+  agent_stats_inst.nr_dir = NR_DIRECTORY;
+  agent_stats_inst.nr_cache_agent = NR_CACHE_AGENT;
+  // printf("checkpoint -6 on main thread: agent_stats_inst.nr_dir = %d\n", agent_stats_inst.nr_dir);
+  // printf("checkpoint -5 on main thread: agent_stats_inst.nr_cache_agent = %d\n", agent_stats_inst.nr_cache_agent);
   /******** MY CODE ENDS ********/
   /***********************************/
 
@@ -633,7 +641,11 @@ int main(int argc, char **argv) {
     fs::path filePath = dir / fs::path("end_to_end" + common_suffix);
     file = fopen(filePath.c_str(), "a");
     assert(file != nullptr);
-    fprintf(file, "recv %lu,  send %lu\n", recv_c, send_c);
+    fprintf(file, "dir recv count = %lu\t dir send count =  %lu\n", recv_c, send_c);
+    if (dsm->myNodeID == 0) {
+      fprintf(file, "sharing ratio = %d\t tp: %llu op/s; all-tp: %llu op/s\n", sharing, tp, all_tp);
+    }
+
     fclose(file);
   /******** MY CODE ENDS ********/
   /***********************************/

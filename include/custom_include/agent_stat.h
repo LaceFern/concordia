@@ -140,13 +140,13 @@ private:
 
     // only collect 1 special app thread stat
     Histogram *app_thread_stats;
-    uint64_t app_thread_counter;
+    volatile uint64_t app_thread_counter;
     std::unordered_map<APP_THREAD_OP, Histogram *> app_thread_op_stats;
 
     // maybe more than 1 sys thread, need use atomic op
     // I don't know why we need sys_thread_stats and multi_sys_thread_stats now(2024/3/5)
     Histogram *sys_thread_stats;
-    uint64_t sys_thread_counter;
+    volatile uint64_t sys_thread_counter;
     std::unordered_map<SYS_THREAD_OP, Histogram *> sys_thread_op_stats;
 
     // used for multi sys thread situation
@@ -166,6 +166,8 @@ private:
 
     volatile int thread_init[48] = {0};
     std::mutex init_mtx;
+    std::mutex app_mtx;
+    std::mutex sys_mtx[MAX_SYS_THREAD];
 
     int home_process_count[MAX_SYS_THREAD] = {0};
 
@@ -250,6 +252,8 @@ public:
     int is_cache = 0;
     int is_home = 0;
 
+    int home_node_id = 0;
+
     SafeQueue<queue_entry> * safe_queues[MAX_SYS_THREAD];
     SPSC_QUEUE * queues[MAX_SYS_THREAD];
     int dir_queue_num = 1;
@@ -258,7 +262,10 @@ public:
     // because each app thread only process the response of the queries it send,
     // which is far less than packets that need process in cache node and home node.
     // Besides, waiting time in request node can't be reduced by increasing sys threads
-    uint64_t sys_thread_num = dir_queue_num + cache_queue_num;
+    int nr_dir = 0;
+    int nr_cache_agent = 0;
+    uint64_t sys_thread_num = 0;
+    uint64_t sys_with_queue_num = dir_queue_num + cache_queue_num;
     uint64_t lcores_num_per_numa = 12;
     explicit agent_stats() {
         // TODO
@@ -334,7 +341,7 @@ public:
     }
 
     void print_multi_sys_thread_stat() {
-        for (size_t i = 0;i < sys_thread_num;i++) {
+        for (size_t i = 0;i < sys_with_queue_num;i++) {
             std::cout << "\nSYS_THREAD_" << i << " PROCESS_IN_HOME_NODE: " << std::endl;
             multi_sys_thread_op_stats[i][MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE]->print(stdout, 5);
             std::cout << "\nSYS_THREAD_" << i << " PROCESS_PENDING_IN_HOME: " << std::endl;
@@ -345,7 +352,7 @@ public:
     }
 
     void print_multi_poll_thread_stat() {
-        for (size_t i = 0;i < sys_thread_num;i++) {
+        for (size_t i = 0;i < sys_with_queue_num;i++) {
             std::cout << "\nPOLL_THREAD_" << i << " WAITING_IN_SYSTHREAD_QUEUE: " << std::endl;
             multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE]->print(stdout, 5);
             std::cout << "\nPOLL_THREAD_" << i << " WAITING_NOT_TARGET: " << std::endl;
@@ -499,31 +506,38 @@ public:
             save_clean_stat(result_dir, "MEMSET");
         }
 
-        for (size_t i = 0;i < sys_thread_num; i++) {
+        for (size_t i = 0;i < sys_with_queue_num; i++) {
             if(is_request || is_cache || is_home){
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_WAITING_IN_QUEUE" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_WAITING_IN_QUEUE");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE");
             }
 
+                // filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE(NOT TARGET)" + common_suffix);
+                // file = fopen(filePath.c_str(), "w");
+                // assert(file != nullptr);
+                // multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET]->print(file, 5);
+                // fclose(file);
+                // save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE(NOT TARGET)");
+
             if(i < dir_queue_num){
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)");
             }
             else{
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)");
             }
 
         }
@@ -536,50 +550,61 @@ public:
         int cache_recv_count_total = 0;
         int recv_count_total = 0;
 
-        for(int i = 0; i < MAX_SYS_THREAD; i++){
+        sys_thread_num = nr_dir + nr_cache_agent;
+        for(int i = 0; i < sys_thread_num; i++){
             home_recv_count_total += home_recv_count[i];
             request_recv_count_total += request_recv_count[i];
             cache_recv_count_total += cache_recv_count[i];
             recv_count_total += home_recv_count[i] + request_recv_count[i] + cache_recv_count[i];
             
-            if(i < dir_queue_num){
+            if(i < nr_dir){
                 fprintf(file, "%d\t", home_recv_count[i]);
+                printf("sysID = %d, recv_count = %d\t", i, home_recv_count[i]);
             }
             else{
                 fprintf(file, "%d\t", cache_recv_count[i]);
+                printf("sysID = %d, recv_count = %d\t", i, cache_recv_count[i]);
             }
             
         }
         fprintf(file, "\t%d\t%d\t%d\t%d\t\n", home_recv_count_total, request_recv_count_total, cache_recv_count_total, recv_count_total);
         fclose(file);        
 
-        for (size_t i = 0;i < sys_thread_num; i++) {
+
+        for (size_t i = 0;i < sys_with_queue_num; i++) {
             if(is_home){
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_PROCESS_IN_HOME_NODE" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_PROCESS_IN_HOME_NODE" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_sys_thread_op_stats[i][MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_PROCESS_IN_HOME_NODE");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_PROCESS_IN_HOME_NODE");
             }
 
             if(is_request || is_home){
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_PROCESS_PENDING_IN_HOME" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_PROCESS_PENDING_IN_HOME" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_sys_thread_op_stats[i][MULTI_SYS_THREAD_OP::PROCESS_PENDING_IN_HOME]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_PROCESS_PENDING_IN_HOME");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_PROCESS_PENDING_IN_HOME");
             }
 
             if(is_cache){
-                filePath = result_directory / fs::path("ST_" + std::to_string(i) + "_PROCESS_IN_CACHE_NODE" + common_suffix);
+                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_PROCESS_IN_CACHE_NODE" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
                 multi_sys_thread_op_stats[i][MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE]->print(file, 5);
                 fclose(file);
-                save_clean_stat(result_dir, "ST_" + std::to_string(i) + "_PROCESS_IN_CACHE_NODE");
+                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_PROCESS_IN_CACHE_NODE");
             }
+
+            filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_PROCESS_NOT_TARGET" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            multi_sys_thread_op_stats[i][MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_PROCESS_NOT_TARGET");
         }
     }
 
@@ -594,6 +619,13 @@ public:
 
     void push_valid_gaddr(GAddr gaddr) {
         valid_gaddrs.insert(gaddr);
+    }
+
+    void print_valid_gaddr() {
+        printf("valid Gaddr:");
+        for (const auto& gaddr : valid_gaddrs) {
+            std::cout << gaddr << std::endl;
+        }
     }
 
     void pop_valid_gaddr(GAddr gaddr) {
@@ -632,11 +664,14 @@ public:
 
     inline void start_record_app_thread(GAddr gaddr) {
         if (is_valid_gaddr(gaddr) && start) {
+            std::lock_guard<std::mutex> lock(app_mtx);
             app_thread_counter = rdtsc();
         }
     }
     inline void stop_record_app_thread_with_op(GAddr gaddr, APP_THREAD_OP op = APP_THREAD_OP::NONE) {
         if (is_valid_gaddr(gaddr) && start) {
+            std::lock_guard<std::mutex> lock(app_mtx);
+            // printf("stop_record_app_thread_with_op: gaddr = %ld, op = %d\n", gaddr, static_cast<int>(op));
             uint64_t ns = rdtscp() - app_thread_counter;
             if (op == APP_THREAD_OP::NONE) {
                 app_thread_stats->record(ns);
@@ -663,10 +698,20 @@ public:
     }
 
     inline void start_record_multi_sys_thread(uint64_t thread_id) {
+        std::lock_guard<std::mutex> lock(sys_mtx[thread_id]);
         multi_sys_thread_counter[thread_id] = rdtsc();
     }
     inline void stop_record_multi_sys_thread_with_op(uint64_t thread_id, MULTI_SYS_THREAD_OP op = MULTI_SYS_THREAD_OP::NONE) {
+        std::lock_guard<std::mutex> lock(sys_mtx[thread_id]);
         uint64_t ns = rdtscp() - multi_sys_thread_counter[thread_id];
+        if (op == MULTI_SYS_THREAD_OP::NONE) {
+            multi_sys_thread_stats[thread_id]->record(ns);
+        } else {
+            multi_sys_thread_op_stats[thread_id][op]->record(ns);
+        }
+    }
+
+    inline void record_multi_sys_thread_with_op(uint64_t thread_id, uint64_t ns, MULTI_SYS_THREAD_OP op = MULTI_SYS_THREAD_OP::NONE) {
         if (op == MULTI_SYS_THREAD_OP::NONE) {
             multi_sys_thread_stats[thread_id]->record(ns);
         } else {

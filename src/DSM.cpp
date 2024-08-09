@@ -55,6 +55,8 @@ DSM::DSM(const DSMConfig &conf)
   }
 
   keeper->barrier("DSM-init");
+
+  sleep(5);
 }
 
 DSM::~DSM() {}
@@ -106,6 +108,9 @@ void DSM::initRDMAConnection() {
 }
 
 void DSM::initSwitchTable() {
+
+  Debug::notifyError("initSwitchTable!");
+
   controller = new Controller(myNodeID, keeper->getMyPort());
   for (int i = 0; i < MAX_APP_THREAD; ++i) {
     controller->appQP(thCon[i]->message->getQPN(), i);

@@ -55,6 +55,7 @@ private:
   uint16_t nodeID;
 
   uint16_t queueID;
+  uint16_t sysID;
 
   Controller *controller;
   SwitchManager *switchManager;

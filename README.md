@@ -25,7 +25,17 @@ concordia仓库原名ccDSM！
 
 # 系统相关的配置文件
 
-ccDSM/host：ip、mac、p4 switch对应的port
+1. ccDSM/host：ip、mac、p4 switch对应的port
+
+2. NR_DIRECTORY 与 DIR_ID_MASK， NR_CACHE_AGENT 与 AGENT_ID_MASK 需要有对应关系，例如：
+
+  NR_DIRECTORY：4
+
+  NR_CACHE_AGENT：4
+
+  #define DIR_ID_MASK 0x3 (注，=0b11)
+
+  #define AGENT_ID_MASK 0x3 (注，=0b11)
 
 # 编译运行交换机代码
 进入./p4src文件夹
@@ -87,15 +97,14 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 在r2上运行sudo  -E  ./highpara_benchmark --no_node 2 --no_thread 1 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
 
-*4机*例子，添加agent_stat，开启目标链路测试：
+*3机*例子，添加agent_stat，开启目标链路测试：
 
-在r1上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 0 --result_dir /home/zxy/concordia_result
+在r1上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 0 --home_node_id 1 --result_dir /home/zxy/concordia_result
 
-在r2上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 1 --result_dir /home/zxy/concordia_result
+在r2上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 1 --home_node_id 1 --result_dir /home/zxy/concordia_result
 
-在r3上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
+在r3上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id 1 --result_dir /home/zxy/concordia_result
 
-在r4上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --result_dir /home/zxy/concordia_result
 
 注意：
 
@@ -118,7 +127,7 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 查看script/benchmark.sh，还没仔细看，应该需要看看权限问题，使用mpi跑
 
 # 测试记录
-*2机*例子，添加agent_stat，未开启目标链路测试：
+*2机*例子，添加agent_stat，未开启目标链路测试：x不能跑完，√能跑完
 
 app thread: 24 (×), 16 (√)
 
@@ -128,4 +137,7 @@ NR_DIRECTORY：4 (√)
 
 性能存疑：sys thread for cache 中的包比sys thread for dir 中的包更容易阻塞？包数量类似，可能是处理时间不同的原因，需要看特定链路的分析结果
 
-草多sys thread还有问题
+草多sys thread还有问题，dir agent分流效果差，cache agent在多sys threads情况下没分流。检查sendMessage2Dir和sendMessage2Agent这两个函数怎么分流的
+
+break_down_times: 1024 (x) 1 (√，能跑完但没相应统计结果，有bug)
+

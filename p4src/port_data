@@ -27,8 +27,8 @@ PORT |MAC |D_P|P/PT|SPEED |FEC |RDY|ADM|OPR|LPBK    |FRAMES RX       |FRAMES TX 
 8/0  |16/0|188|3/60| 100G | RS |YES|ENB|DWN|  NONE  |               0|               0| 
 9/0  |15/0| 56|1/56| 100G | RS |NO |ENB|DWN|  NONE  |               0|               0| 
 10/0 |14/0| 48|1/48| 100G | RS |NO |ENB|DWN|  NONE  |               0|               0| 
-11/0 |13/0| 40|1/40| 100G | RS |YES|ENB|UP |  NONE  |               3|               0| 
-12/0 |12/0| 32|1/32| 100G | RS |YES|ENB|UP |  NONE  |               4|               0| 
+11/0 |13/0| 40|1/40| 100G | RS |YES|ENB|UP |  NONE  |               1|               0| 
+12/0 |12/0| 32|1/32| 100G | RS |YES|ENB|UP |  NONE  |               1|               0| 
 13/0 |11/0| 24|1/24| 100G | RS |YES|ENB|UP |  NONE  |               3|               0| 
 14/0 |10/0| 16|1/16| 100G | RS |YES|ENB|UP |  NONE  |               3|               0| 
 15/0 | 9/0|  8|1/ 8| 100G | RS |NO |ENB|DWN|  NONE  |               0|               0| 

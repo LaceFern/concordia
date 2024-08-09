@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #Compiler options
 # set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -DNDEBUG -g")
-set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O3 -g -fopenmp -DNDEBUG")
+set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O2 -g -fopenmp -DNDEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 ")
 
 # Link Options

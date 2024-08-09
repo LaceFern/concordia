@@ -47,6 +47,7 @@ class CacheAgent {
     uint16_t nodeID;
 
     uint16_t queueID;
+    uint16_t sysID;
 
     std::thread *agent;
 
