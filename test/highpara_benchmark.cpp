@@ -39,7 +39,7 @@ uint64_t breakdown_size = DSM_CACHE_LINE_SIZE * breakdown_times;
 
 #define MB (1024ull * 1024)
 
-const uint64_t BLOCK_SIZE = uint64_t(MB * 31); // user application space required per node
+const uint64_t BLOCK_SIZE = uint64_t(MB * 31); // 31 user application space required per node
 
 #define SUB_PAGE_SIZE (512) // aligned byte granularity for user mem operation
 #define STEPS (BLOCK_SIZE * nodeNR / SUB_PAGE_SIZE)
@@ -348,7 +348,7 @@ void start_thread(int nodeID, int threadID) {
   warmup_no_breakdown.fetch_add(1);
   while (warmup_no_breakdown.load() != threadNR) ;
   if (threadID == 0) {
-    dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt));
+    dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt + 1));
     // printf("node %d start benchmark\n", nodeID);
   }
 
@@ -363,7 +363,7 @@ void start_thread(int nodeID, int threadID) {
   warmup_breakdown.fetch_add(1);
   while (warmup_breakdown.load() != threadNR) ;
   if (threadID == 0) {
-    dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt + 1));
+    dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt + 2));
     // printf("node %d start benchmark\n", nodeID);
   }
 
@@ -451,8 +451,8 @@ void parserArgs(int argc, char **argv) {
     }
     else if (strcmp(argv[i], "--no_thread") == 0) {
       threadNR = atoi(argv[++i]);
-    } else if (strcmp(argv[i], "--remote_ratio") == 0) {
-      locality = 100 - atoi(argv[++i]);  //0..100
+    } else if (strcmp(argv[i], "--locality") == 0) {
+      locality = atoi(argv[++i]);  //0..100
     } else if (strcmp(argv[i], "--shared_ratio") == 0) {
       sharing = atoi(argv[++i]);  //0..100
     } else if (strcmp(argv[i], "--read_ratio") == 0) {
@@ -512,12 +512,12 @@ int main(int argc, char **argv) {
   /******** MY CODE ENDS ********/
   /***********************************/
 
-  uint64_t sys_total_size = 32; //GB
+  uint64_t sys_total_size = 16; //GB
   DSMConfig conf(CacheConfig(), nodeNR, sys_total_size); // 4G per node;
 
   /***********************************/
   /******** MY CODE STARTS ********/
-  cout << "conf.size = " << sys_total_size / nodeNR << "B (" << sys_total_size / nodeNR / (1024 * 1024 * 1024) << "GB)" << endl;
+  cout << "conf.size = " << sys_total_size / nodeNR << "GB" << endl;
   cout << "----------" << endl;
   cout << "user access space = " << ((long)BLOCK_SIZE) * nodeNR * 1.0 / (1024 * 1024 * 1024) << "GB" << endl;
   cout << "user cache ratio = " << ((long)DSM_CACHE_INDEX_SIZE) * CACHE_WAYS * DSM_CACHE_LINE_SIZE / (BLOCK_SIZE * nodeNR) << endl;

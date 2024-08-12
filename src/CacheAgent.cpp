@@ -24,7 +24,7 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
 
   mybitmap = 1 << nodeID;
 
-  // sysID = dirID;
+  // sysID = NR_DIRECTORY + agentID;
   // agent = new std::thread(&CacheAgent::agentThread, this);
   sysID = NR_DIRECTORY + agentID;
   if(agentID < agent_stats_inst.cache_queue_num){
@@ -37,31 +37,37 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
   else{
     agent = new std::thread(&CacheAgent::agentThread, this);
   }
-  // sleep(5);
 }
 
 void CacheAgent::queueThread() {
-  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  bindCore(NUMA_CORE_NUM - agentID);
+  // bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
   Debug::notifyInfo("cache queue %d launch!\n", agentID);
 
   while(true){
     struct ibv_wc wc;
     pollWithCQ(cCon->cq, 1, &wc);
     uint64_t now_time_tsc = agent_stats_inst.rdtsc();
-    while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
-    std::atomic_thread_fence(std::memory_order_release);
+
+    struct queue_entry entry;
+    entry.wc = wc;
+    entry.starting_point = now_time_tsc;
+    (agent_stats_inst.queues[queueID])->push(entry);
+
+    // while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
+    // std::atomic_thread_fence(std::memory_order_release);
     // agent_stats_inst.update_cache_recv_count(queueID);
     // agent_stats_inst.update_cache_recv_count(sysID);
   }
 }
 
 void CacheAgent::processThread() {
-  bindCore(NUMA_CORE_NUM - agentID);
+  // bindCore(NUMA_CORE_NUM - agentID);
   Debug::notifyInfo("cache pure %d launch!\n", agentID);
 
   while (true) {
     queue_entry entry = agent_stats_inst.queues[queueID]->pop();
-    std::atomic_thread_fence(std::memory_order_acquire);
+    // std::atomic_thread_fence(std::memory_order_acquire);
     uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
     (void)waiting_time;
     ibv_wc &wc = entry.wc;

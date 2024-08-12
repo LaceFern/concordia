@@ -507,23 +507,17 @@ public:
         }
 
         for (size_t i = 0;i < sys_with_queue_num; i++) {
-            if(is_request || is_cache || is_home){
-                filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE" + common_suffix);
-                file = fopen(filePath.c_str(), "w");
-                assert(file != nullptr);
-                multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE]->print(file, 5);
-                fclose(file);
-                save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE");
-            }
-
-                // filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE(NOT TARGET)" + common_suffix);
-                // file = fopen(filePath.c_str(), "w");
-                // assert(file != nullptr);
-                // multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET]->print(file, 5);
-                // fclose(file);
-                // save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_QUEUE(NOT TARGET)");
-
             if(i < dir_queue_num){
+
+                if(is_home){
+                    filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE" + common_suffix);
+                    file = fopen(filePath.c_str(), "w");
+                    assert(file != nullptr);
+                    multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE]->print(file, 5);
+                    fclose(file);
+                    save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE");
+                }
+
                 filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
@@ -532,6 +526,16 @@ public:
                 save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_DIR_QUEUE(NOT TARGET)");
             }
             else{
+
+                if(is_cache){
+                    filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE" + common_suffix);
+                    file = fopen(filePath.c_str(), "w");
+                    assert(file != nullptr);
+                    multi_poll_thread_op_stats[i][MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE]->print(file, 5);
+                    fclose(file);
+                    save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE");
+                }
+
                 filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)" + common_suffix);
                 file = fopen(filePath.c_str(), "w");
                 assert(file != nullptr);
@@ -539,7 +543,6 @@ public:
                 fclose(file);
                 save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_WAITING_IN_CACHE_QUEUE(NOT TARGET)");
             }
-
         }
 
         filePath = result_directory / fs::path("RECV_PACKET_COUNT" + common_suffix);
@@ -559,11 +562,11 @@ public:
             
             if(i < nr_dir){
                 fprintf(file, "%d\t", home_recv_count[i]);
-                printf("sysID = %d, recv_count = %d\t", i, home_recv_count[i]);
+                printf("sysID = %d, home_recv_count = %d\t", i, home_recv_count[i]);
             }
             else{
                 fprintf(file, "%d\t", cache_recv_count[i]);
-                printf("sysID = %d, recv_count = %d\t", i, cache_recv_count[i]);
+                printf("sysID = %d, cache_recv_count = %d\t", i, cache_recv_count[i]);
             }
             
         }

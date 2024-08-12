@@ -37,10 +37,24 @@ concordia仓库原名ccDSM！
 
   #define AGENT_ID_MASK 0x3 (注，=0b11)
 
+3. 如果需要目录下放，需要打开 ENABLE_SWITCH_CC 宏
+
+4. 如果需要使用highpara_benchmark.py脚本，需要配置sudo指令免密执行，完善py内的一些初始化参数和对应arp文件
+
 # 编译运行交换机代码
 进入./p4src文件夹
 
 在当前用户根目录下（e.g., /home/zxy）运行 ln -s /root/Software/bf-sde-8.9.1 bf-sde-8.9.1
+
+检查环境变量如下：
+
+```
+# SDE
+export SDE=/home/zxy/bf-sde-8.9.1
+export SDE_INSTALL=$SDE/install
+export PATH=$PATH:$SDE_INSTALL/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
+```
 
 编译: ./build.sh 时间比较长
 
@@ -87,9 +101,9 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 *2机*例子，原版代码：
 
-在r1上运行sudo  -E  ./benchmark 2 4 50 50 50；
+在r1上运行sudo  -E  ./benchmark 4 4 50 0 100；
 
-在r2上运行sudo  -E  ./benchmark 2 4 50 50 50；
+在r2上运行sudo  -E  ./benchmark 4 4 50 0 100；
 
 *2机*例子，添加agent_stat，未开启目标链路测试：
 
@@ -99,11 +113,13 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 *3机*例子，添加agent_stat，开启目标链路测试：
 
-在r1上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 0 --home_node_id 1 --result_dir /home/zxy/concordia_result
+在r1上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --locality 0 --shared_ratio 100 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id 2 --result_dir /home/zxy/concordia_result_2
 
-在r2上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 1 --home_node_id 1 --result_dir /home/zxy/concordia_result
+在r2上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --locality 0 --shared_ratio 100 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 1 --request_rw 1 --is_home 0 --home_node_id 2 --result_dir /home/zxy/concordia_result_2
 
-在r3上运行sudo  -E  ./highpara_benchmark --no_node 3 --no_thread 4 --remote_ratio 50 --shared_ratio 50 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id 1 --result_dir /home/zxy/concordia_result
+在r3上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --locality 0 --shared_ratio 100 --read_ratio 50 --is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 1 --home_node_id 2 --result_dir /home/zxy/concordia_result_2
+
+在r4上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --locality 0 --shared_ratio 100 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id 2 --result_dir /home/zxy/concordia_result_2
 
 
 注意：
@@ -111,6 +127,8 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 1. 如果发现了“XXXX: Connection timed out failed to modify QP state to RTS”
 
 一般是arp缓存有问题，执行arp-*.sh，使用arp -a查看
+
+如果在运行highpara_benchmark.py过程中遇到该问题，记得运行kill_all.py
 
 2. 在DSMKepper.cpp里进行了远程ssh的执行:
 
@@ -126,18 +144,38 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 #  自动化运行
 查看script/benchmark.sh，还没仔细看，应该需要看看权限问题，使用mpi跑
 
+# 参数配置 (benchmark, highpara_benchmark)
+1. sys_total_size: 所有节点总共内存空间大小（所有空间其实都是可共享的）[初始值:32GB] [当前值:16GB(开太大会导致mmap-failed？冷重启)]
+2. BLOCK_SIZE: 每个节点上所有App线程会访问的总工作集空间[初始值:31MB(注:GAM的工作集为204800*512B=104MB)] [可能值:128MB]
+3. SUB_PAGE_SIZE: 用户内存操作地址按该值对齐[初始值:512B]
+4. STEPS: 单App线程用户发起内存操作次数[初始值:BLOCK_SIZE*nodeNR/SUB_PAGE_SIZE=253,952(4机)]
+5. DSM_CACHE_LINE_WIDTH: 缓存行大小（2的幂次）[初始值:12(4KB)]
+6. DSM_CACHE_INDEX_WIDTH: 缓存每个组中缓存行数目（2的幂次）[初始值:16(65536个)]
+7. CACHE_WAYS：组相联缓存的行数[初始值:8]
+8. DSM_CACHE_INDEX_SIZE * CACHE_WAYS: 缓存大小[初始值:2GB(注：使用的空间不与sys_total_size重合)]
+9. locality: 本地内存操作有多大概率与上一次访问的地址是连续的[初始值:0]
+10. sharing: 所有内存操作中，针对不共享的空间（注意：系统支持共享，但应用避开了对这部分空间的共享访问）进行访问的内存操作占比[初始值:50]
+11. readNR: 所有内存操作中，读操作占比[初始值:50]
+
+
+
 # 测试记录
-*2机*例子，添加agent_stat，未开启目标链路测试：x不能跑完，√能跑完
 
-app thread: 24 (×), 16 (√)
+1. 4机，4 App thread，2 Sys thread，0 Queue thread，关闭交换机下放：1217804 total-ops
 
-NR_CACHE_AGENT：4 (√)
+2. 4机，4 App thread，8 Sys thread，0 Queue thread，关闭交换机下放：1249507(1254000) total-ops
 
-NR_DIRECTORY：4 (√)
+2. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放：(测试时间很久,20分钟起步)
 
-性能存疑：sys thread for cache 中的包比sys thread for dir 中的包更容易阻塞？包数量类似，可能是处理时间不同的原因，需要看特定链路的分析结果
+3. 4机，4 App thread，8 Sys thread，1 Queue thread(目录)，关闭交换机下放：190858(统计有memfence，有锁)，1223500（统计无memfence，有锁），卡住（统计无memfence，无锁）
 
-草多sys thread还有问题，dir agent分流效果差，cache agent在多sys threads情况下没分流。检查sendMessage2Dir和sendMessage2Agent这两个函数怎么分流的
+3. 4机，4 App thread，8 Sys thread，2 Queue thread(目录与缓存)，关闭交换机下放：229498（统计无memfence，有锁）
 
-break_down_times: 1024 (x) 1 (√，能跑完但没相应统计结果，有bug)
+3. 4机，4 App thread，8 Sys thread，1 Queue thread(缓存)，关闭交换机下放：218049（统计无memfence，有锁）
+
+3. 4机，4 App thread，8 Sys thread，2 Queue thread(目录与缓存)，关闭交换机下放，ibv_poll轮询线程（2 queue-thread 与 6 sys-thread）有绑核，其他未绑核：1197398（统计无memfence，有锁）
+
+以上，验证统计功能无误且不影响性能
+------------------------
+
 

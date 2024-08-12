@@ -9,6 +9,10 @@
 
 #include <algorithm>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
 DSM *DSM::getInstance(const DSMConfig &conf) {
   static DSM *dsm = nullptr;
   static WRLock lock;
@@ -56,7 +60,8 @@ DSM::DSM(const DSMConfig &conf)
 
   keeper->barrier("DSM-init");
 
-  sleep(5);
+  srand(time(NULL));
+  sleep(rand()%15);
 }
 
 DSM::~DSM() {}
