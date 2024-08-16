@@ -26,15 +26,15 @@ int is_cache = 0;
 int is_request = 0;
 int cache_rw = 0;
 int request_rw = 0;
-int breakdown_times = 1024;//1024;//204800;
+int breakdown_times = 16384;//1024;//204800;
 const char *result_directory = "gam_result";
 uint64_t breakdown_size = DSM_CACHE_LINE_SIZE * breakdown_times;
 /******** MY CODE ENDS ********/
 /***********************************/
 
-#define MAX_THREAD 24
+#define MAX_THREAD 48
 
-#define OP_NUMS 2000000 //2000000
+#define OP_NUMS 200000 //2000000
 #define OBJ_SIZE 8
 
 #define MB (1024ull * 1024)
@@ -336,12 +336,15 @@ void start_thread(int nodeID, int threadID) {
   //   bindCore(threadID + 24);
   // }
 
-  // app在numa1,sys在numa0
+  // // app在numa1,sys在numa0
   if(threadID < 12){
     bindCore(12 + threadID);
   }
-  else{
+  else if(threadID < 24){
     bindCore(24 + threadID);
+  }
+  else if(threadID < 36){
+    bindCore(threadID);
   }
 
   // printf("checkpoint 1 on thread %d\n", threadID);

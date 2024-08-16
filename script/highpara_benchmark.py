@@ -38,11 +38,11 @@ other_machine = []
 other_nic_name = []
 other_arp_script = []
 
-output_directory = "/home/zxy/concordia_result_5_diff_cline_size"
+output_directory = "/home/zxy/concordia_result_6_target_cc_txn"
 program_name = "highpara_benchmark"
 
 # app_thread_num = [24]
-app_thread_num = [16]
+app_thread_num = [32]
 
 # RLock is 0, WLock is 1
 request_type = 1

@@ -111,9 +111,11 @@ retry:
 
 #ifdef DEADLOCK_DETECTION
   if (counter++ > 100000) {
-    printf("(%d, %d) try to readLine %lx, %d fail!!!\n", dsm->myNodeID, iId,
-           addr.getDirKey(), addr.nodeID);
+    // printf("(%d, %d) try to readLine %lx, %d fail!!!\n", dsm->myNodeID, iId, addr.getDirKey(), addr.nodeID);
     assert(false);
+
+    uint64_t delay = counter;
+    for(int i = 0; i < delay / 100000; i++);
   }
 #endif
 
@@ -172,9 +174,11 @@ retry:
 
 #ifdef DEADLOCK_DETECTION
       if (write_miss_counter++ > 10000) {
-        printf("(%d, %d) try to writeLine %lx, %d fail!!!!\n", dsm->myNodeID,
-               iId, addr.getDirKey(), addr.nodeID);
+        // printf("(%d, %d) try to writeLine %lx, %d fail!!!!\n", dsm->myNodeID, iId, addr.getDirKey(), addr.nodeID);
         assert(false);
+
+        uint64_t delay = write_miss_counter;
+        for(int i = 0; i < delay / 10000; i++);
       }
 #endif
       goto retry;
@@ -186,9 +190,11 @@ retry:
 
 #ifdef DEADLOCK_DETECTION
       if (write_shared_counter++ > 10000) {
-        printf("(%d, %d)  try to writeshared %lx, %d fail!!!!\n", dsm->myNodeID,
-               iId, addr.getDirKey(), addr.nodeID);
+        // printf("(%d, %d)  try to writeshared %lx, %d fail!!!!\n", dsm->myNodeID,iId, addr.getDirKey(), addr.nodeID);
         assert(false);
+
+        uint64_t delay = write_shared_counter;
+        for(int i = 0; i < delay / 10000; i++);
       }
 #endif
 

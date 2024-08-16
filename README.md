@@ -250,6 +250,101 @@ xxx try to writeshared xxx, xxx fail!!!
 3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：4050315
 3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1：4007098 (ok,统计线程就这么加)
 
+------------------
+添加统计信息的相关测试
+3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1：4007098 
+
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 2807.23	          | 17355.8       | 1130.1          | 1542.29	(921.425)    | 626.414        | /                     | /
+| request_type = 1, cache_init = 1, cache_type = 1  | 1525.59	          | 28801.9       | 1186.51         | 1136.77	(916.456)    | 591.744        | 898.785 (1038.45)		  | 1096.42
+
+pure packet = 15,187
+pure packet = 25,078
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 2500.7            | 35635.1       | 2057.5          | 3366.3 (3388.7)      | 1174.3         | /                     | /               |
+| request_type = 1, cache_init = 1, cache_type = 1  | 2708.7            | 36915.1       | 2267.1          | 12377.5 (3315.1)     | 1218.3         | 3318.3 (3907.1)	      | 2268.7          |
+
+
+3. 4机，1 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1：356174
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 976.97 | 16699.7 | 648.254 |
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 1734.3 | 25305.5 | 1002.3 |
+
+
+
+3. 4机，1 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384：352169
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 957.269	| 16909.5	| 657.79 |
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 1626.3 | 22745.5 | 982.3 |
+
+ 
+
+3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384：3993643
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 1566.98	| 20442.8	| 1138.74	|
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 2518.3 | 30335.9 | 2180.7 |
+
+
+
+3. 4机，18 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384：4383501
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 1468.65 |	18112.3	| 1097.76	|
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 2422.3 | 29465.5 | 2129.5 |
+
+
+3. 4机，20 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384：卡住
+3. 4机，20 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，OP_NUMS=200000：卡住
+3. 4机，20 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，OP_NUMS=200000，注释try to writeshared：4789598
+3. 4机，20 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to writeshared：4765732
+P50
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 1530.44	| 21290.8 | 1147.76	|
+
+P99
+| target cc                                         | request starts cc | request waits | request ends cc | packet in home queue | home processes | packet in cache queue | cache processes |
+|---------------------------------------------------|-------------------|---------------|-----------------|----------------------|----------------|-----------------------|-----------------|
+| request_type = 1, cache_init = 0, cache_type = 0  | 2547.1 | 31359.9 | 2217.5 |
+
+2547.1 + 31359.9 + 2217.5 =
+
+
+3. 4机，22 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to writeshared：卡住
+3. 4机，20 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to writeshared：（重试）
+3. 4机，22 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx,失败事务重试间隔为指数退避，OP_NUM=200000：5252286
+3. 4机，22 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx，OP_NUM=200000：5239324
+3. 4机，24 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx，OP_NUM=200000：5733557
+3. 4机，28 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6048218 (重试6014363)
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6827330 (重试（删了指数退避相关内容）6472483)
 ---
 debug:
 1. 草，为什么开着加解应用锁，则dir计数少了1/4的包（本应处理加应用锁，W-miss，W-miss-unlock，解应用锁（少了这个））；
@@ -263,4 +358,4 @@ debug:
 
 另注：concordia自带的bindCore函数，传入的参数core表示CPU id，在实验室集群中，CPU0-11,24-35属于numa0
 
-3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义
+3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
