@@ -40,8 +40,7 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
 }
 
 void CacheAgent::queueThread() {
-  bindCore(NUMA_CORE_NUM - agentID);
-  // bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  bindCore(NUMA_CORE_NUM - 1 - agentID);
   Debug::notifyInfo("cache queue %d launch!\n", agentID);
 
   while(true){
@@ -62,7 +61,7 @@ void CacheAgent::queueThread() {
 }
 
 void CacheAgent::processThread() {
-  // bindCore(NUMA_CORE_NUM - agentID);
+  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
   Debug::notifyInfo("cache pure %d launch!\n", agentID);
 
   while (true) {
@@ -123,7 +122,8 @@ void CacheAgent::processThread() {
 
 void CacheAgent::agentThread() {
 
-  bindCore(NUMA_CORE_NUM - agentID);
+  bindCore(NUMA_CORE_NUM - 1 - agentID);
+  // bindCore(NUMA_CORE_NUM - agentID);
 
   Debug::notifyInfo("cache agent %d launch!\n", agentID);
   while (true) {

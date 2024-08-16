@@ -9,7 +9,7 @@ import sys
 # distributed dir: always average
 # sys num should modify in src code file and p4src code file (see README)
 
-base = "~/nfs/DSM_prj/concordia/ccDSM"
+base = "~/nfs/DSM_prj/concordia_tmp/concordia"
 user = "zxy"
 init_page = True
 
@@ -38,15 +38,25 @@ other_machine = []
 other_nic_name = []
 other_arp_script = []
 
-output_directory = "/home/zxy/concordia_result_1"
+output_directory = "/home/zxy/concordia_result_5_diff_cline_size"
 program_name = "highpara_benchmark"
 
 # app_thread_num = [24]
-app_thread_num = [4]
+app_thread_num = [16]
 
 # RLock is 0, WLock is 1
 request_type = 1
+# if need cache -> 1
+cache_init = 0 
+# RLock is 0, WLock is 1
 cache_type = 0
+
+# # RLock is 0, WLock is 1
+# request_type = 1
+# # if need cache -> 1
+# cache_init = 1 
+# # RLock is 0, WLock is 1
+# cache_type = 1
 
 def node_init_4_page(ssh):
     stdin, stdout, stderr = ssh.exec_command(
@@ -149,13 +159,13 @@ def cache_run(ssh, program, app_thread_num, output_dir, node_num, nic_name):
     print("export NIC_NAME={7} && cd {0}/build && sudo -E ./{1} "
         "--no_node {2} --no_thread {3} "
         "--locality 0 --shared_ratio 100 --read_ratio 50 "
-        "--is_cache 1 --cache_rw {6} --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
-        "--result_dir {5}".format(base, program, node_num, app_thread_num, home_node_id, output_dir, cache_type, nic_name))
+        "--is_cache {8} --cache_rw {6} --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
+        "--result_dir {5}".format(base, program, node_num, app_thread_num, home_node_id, output_dir, cache_type, nic_name, cache_init))
     stdin, stdout, stderr = ssh.exec_command("export NIC_NAME={7} && cd {0}/build && sudo -E ./{1} "
         "--no_node {2} --no_thread {3} "
         "--locality 0 --shared_ratio 100 --read_ratio 50 "
-        "--is_cache 1 --cache_rw {6} --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
-        "--result_dir {5}".format(base, program, node_num, app_thread_num, home_node_id, output_dir, cache_type, nic_name))
+        "--is_cache {8} --cache_rw {6} --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
+        "--result_dir {5}".format(base, program, node_num, app_thread_num, home_node_id, output_dir, cache_type, nic_name, cache_init))
 
     while not stdout.channel.exit_status_ready():
         result = stdout.readline()

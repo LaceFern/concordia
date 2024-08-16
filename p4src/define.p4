@@ -13,3 +13,5 @@
 // #define AGENT_ID_MASK 0
 #define DIR_ID_MASK 0x3
 #define AGENT_ID_MASK 0x3
+// #define DIR_ID_MASK 0x1
+// #define AGENT_ID_MASK 0x1

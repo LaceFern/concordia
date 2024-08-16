@@ -746,6 +746,99 @@ public:
         }
     }
 
+    int readMiss[48] = {0};
+    int readMiss_1[48] = {0};
+    int readMiss_2[48] = {0};
+
+    int writeMiss[48] = {0};
+    int writeMiss_1[48] = {0};
+
+    int writeShared[48] = {0};
+    int writeShared_1[48] = {0};
+    int writeShared_2[48] = {0};
+
+    int evictLine[48] = {0};
+    int evictLine_1[48] = {0};
+    int evictLine_2[48] = {0};
+    int evictLine_3[48] = {0};
+    int evictLine_4[48] = {0};
+
+
+    void print_all_false_count(FILE *file, int threadNR){
+
+        fprintf(file, "\nreadMiss:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", readMiss[i]);
+        }
+
+        fprintf(file, "\nreadMiss_1:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", readMiss_1[i]);
+        }
+
+        fprintf(file, "\nreadMiss_2:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", readMiss_2[i]);
+        }
+
+        //-----
+
+        fprintf(file, "\nwriteMiss:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", writeMiss[i]);
+        }
+
+        fprintf(file, "\nwriteMiss_1:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", writeMiss_1[i]);
+        }
+
+        //-----
+
+        fprintf(file, "\nwriteShared:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", writeShared[i]);
+        }
+
+        fprintf(file, "\nwriteShared_1:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", writeShared_1[i]);
+        }
+
+        fprintf(file, "\nwriteShared_2:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", writeShared_2[i]);
+        }
+
+        //-----
+
+        fprintf(file, "\nevictLine:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", evictLine[i]);
+        }
+
+        fprintf(file, "\nevictLine_1:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", evictLine_1[i]);
+        }
+
+        fprintf(file, "\nevictLine_2:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", evictLine_2[i]);
+        }
+
+        fprintf(file, "\nevictLine_3:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", evictLine_2[i]);
+        }
+
+        fprintf(file, "\nevictLine_4:\n");
+        for(int i = 0; i < threadNR; i++){
+            fprintf(file, "%d\t", evictLine_2[i]);
+        }
+
+    }
+
 };
 
 extern agent_stats agent_stats_inst;

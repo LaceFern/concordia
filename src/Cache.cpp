@@ -630,13 +630,16 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef VERBOSE
       printf("lock_fail\n");
 #endif
+      if(agent_stats_inst.is_start()) agent_stats_inst.readMiss[iId]++;
       return false;
     case RawMessageType::M_CHECK_FAIL:
       // printf("check_fail");
+      if(agent_stats_inst.is_start()) agent_stats_inst.readMiss_1[iId]++;
       return false;
 
     case RawMessageType::DIR_2_APP_MISS_SWITCH:
       // printf("switch_fail");
+      if(agent_stats_inst.is_start()) agent_stats_inst.readMiss_2[iId]++;
       return false;
     case RawMessageType::N_DIR_ACK_APP_READ_MISS_DIRTY: {
 #ifdef READ_MISS_DIRTY_TO_DIRTY
@@ -741,12 +744,14 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
       printf("lock_fail\n");
 #endif
       // stat.write_shared_lock_fail++;
+      if(agent_stats_inst.is_start()) agent_stats_inst.writeMiss[iId]++;
       return false;
     case RawMessageType::M_CHECK_FAIL:
     // printf("check_fail");
     case RawMessageType::DIR_2_APP_MISS_SWITCH:
       //  printf("switch_fail");
       // stat.write_miss_check_fail++;
+      if(agent_stats_inst.is_start()) agent_stats_inst.writeMiss_1[iId]++;
       return false;
     case RawMessageType::AGENT_ACK_WRITE_MISS: {
       // stat.write_miss_shared++;
@@ -818,6 +823,7 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
     printf("lock fail\n");
 #endif
     // stat.write_shared_lock_fail++;
+    if(agent_stats_inst.is_start()) agent_stats_inst.writeShared[iId]++;
     return false;
     break;
   }
@@ -826,10 +832,12 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
     printf("check fail %s 0x%x\n", strState(ack->state), ack->bitmap);
 #endif
     // stat.write_shared_check_fail++;
+    if(agent_stats_inst.is_start()) agent_stats_inst.writeShared_1[iId]++;
     return false;
     break;
   }
   case RawMessageType::DIR_2_APP_MISS_SWITCH: {
+    if(agent_stats_inst.is_start()) agent_stats_inst.writeShared_2[iId]++;
     return false;
     break;
   }
@@ -876,6 +884,8 @@ bool Cache::evictLine(LineInfo *line, CacheStatus c,
   } else {
     assert(false);
   }
+
+  if(agent_stats_inst.is_start()) agent_stats_inst.evictLine[iId]++;
   return false;
 }
 
@@ -895,6 +905,8 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
   case RawMessageType::M_LOCK_FAIL:
   case RawMessageType::M_CHECK_FAIL:
   case RawMessageType::DIR_2_APP_MISS_SWITCH: {
+
+    if(agent_stats_inst.is_start()) agent_stats_inst.evictLine_1[iId]++;
     return false;
     break;
   }
@@ -920,6 +932,8 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
   };
 
   assert(false);
+
+  if(agent_stats_inst.is_start()) agent_stats_inst.evictLine_2[iId]++;
   return false;
 }
 
@@ -939,6 +953,8 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
   case RawMessageType::M_LOCK_FAIL:
   case RawMessageType::M_CHECK_FAIL:
   case RawMessageType::DIR_2_APP_MISS_SWITCH: {
+
+    if(agent_stats_inst.is_start()) agent_stats_inst.evictLine_3[iId]++;
     return false;
     break;
   }
@@ -973,6 +989,8 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
   };
 
   assert(false);
+
+  if(agent_stats_inst.is_start()) agent_stats_inst.evictLine_4[iId]++;
   return false;
 }
 

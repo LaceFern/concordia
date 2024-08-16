@@ -1,6 +1,6 @@
 concordia仓库原名ccDSM！
 
-需要把代码中的wq改成当前用户名（e.g., zxy），然后把"/zxy/nfs/ccDSM/"改成当前工程所在目录（e.g., "/zxy/nfs/DSM_prj/concordia/ccDSM/"）
+重要！！！！：需要把代码中的wq改成当前用户名（e.g., zxy），然后把"/zxy/nfs/ccDSM/"改成当前工程所在目录（e.g., "/zxy/nfs/DSM_prj/concordia/ccDSM/"）
 
 # 系统版本以及库需求
 交换机：
@@ -156,12 +156,17 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 9. locality: 本地内存操作有多大概率与上一次访问的地址是连续的[初始值:0]
 10. sharing: 所有内存操作中，针对不共享的空间（注意：系统支持共享，但应用避开了对这部分空间的共享访问）进行访问的内存操作占比[初始值:50]
 11. readNR: 所有内存操作中，读操作占比[初始值:50]
+12. OP_NUM：2000000
 
+# 绑核
+线程数少于12，都绑numa0
+
+线程数=24
 
 
 # 测试记录
 
-1. 4机，4 App thread，2 Sys thread，0 Queue thread，关闭交换机下放：1217804 total-ops
+1. （对比1）4机，4 App thread，2 Sys thread，0 Queue thread，关闭交换机下放：1217804 total-ops
 
 2. 4机，4 App thread，8 Sys thread，0 Queue thread，关闭交换机下放：1249507(1254000) total-ops
 
@@ -175,7 +180,87 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 3. 4机，4 App thread，8 Sys thread，2 Queue thread(目录与缓存)，关闭交换机下放，ibv_poll轮询线程（2 queue-thread 与 6 sys-thread）有绑核，其他未绑核：1197398（统计无memfence，有锁）
 
-以上，验证统计功能无误且不影响性能
-------------------------
+3. 4机，4 App thread，8 Sys thread，2 Queue thread(目录与缓存)，开启交换机下放，ibv_poll轮询线程（2 queue-thread 与 6 sys-thread）有绑核，其他未绑核：1818494（统计无memfence，有锁）
 
+3. 4机，8 App thread，8 Sys thread，2 Queue thread(目录与缓存)，开启交换机下放，ibv_poll轮询线程（2 queue-thread 与 6 sys-thread）有绑核，app threads有绑核（numa1）：486582（统计无memfence，有锁）
 
+3. 4机，8 App thread，8 Sys thread，2 Queue thread，关闭交换机下放，app threads有绑核（numa1）：372414（统计无memfence，有锁）
+
+3. 4机，8 App thread，8 Sys thread，2 Queue thread，关闭交换机下放，app threads有绑核（numa1），调整cacheline 512B：434766（统计无memfence，有锁）
+
+3. 4机，4 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app threads有绑核（numa0）：1252909（统计无memfence，有锁）
+
+3. 4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app threads有绑核（numa0）：非常慢，几十分钟了还没跑出来（统计无memfence，有锁）
+
+3. 4机，8 App thread，2 Sys thread，0 Queue thread，关闭交换机下放，app threads有绑核（numa0）：非常慢，几十分钟了还没跑出来（统计无memfence，有锁）
+
+3. （对比1）4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：2292223
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：非常慢
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：816255
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为20000，取消打印：708284
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，取消打印：663365
+
+3. （对比1）4机，12 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，取消打印：651208(500895)
+
+3. （对比1）4机，12 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，取消打印, SUB_PAGE_SIZE=4096：505619(713119)
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，CACHE_LINE_SIZE=512, 取消打印：531756
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，CACHE_WAYS=16, 取消打印：757085
+
+3. （对比1）4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000，CACHE_WAYS=32, 取消打印：628442
+
+3. （对比1）4机，12 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，OP_NUM修改为200000, 取消打印：807017
+
+3. （对比1）4机，12 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1, OP_NUM修改为200000，CACHE_LINE_SIZE=512，取消打印：500096
+
+3. （对比1）4机，8 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1, OP_NUM修改为200000，CACHE_LINE_SIZE=512，取消打印：318164
+
+结论：concordia如果cache line设置的大，那么目录少，高并发下竞争剧烈；如果cache line设置的小，那么目录多，CC事务竞争少但数量多，网络压力增加。线程数少的时候cache line设置的大，线程数多的时候cache line要减小（也不一定减到512B，从4KB开始慢慢往下试）
+
+xxx try to writeshared xxx, xxx fail!!!
+
+------------------
+
+我怎么有点怀疑是8个sys thread没有设置正确的问题，导致大量网络包丢失
+
+3. 4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：2292223
+3. 4机，8 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1，CACHE_LINE_SIZE=512:318164
+3. 4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：284470
+3. 4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0(重测)：2309574
+3. 4机，8 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1(重测)：473400
+3. 4机，16 App thread，4 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：3986750
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：4072278（单长链路延迟：1253.37+28067.4+856.301=30,177=13.7）
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：821047（单长链路延迟：1417.05+24625+1049.53=27,091）
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：4061637（单短链路延迟：1241.64+16619.5+875.346=18,736=8.5）
+
+3. 4机，16 App thread，8 Sys thread，2 Queue thread，关闭交换机下放，app/无queue sys threads/queue threads都在numa0，有queue sys threads未绑核：3782383
+
+草，等会，发现concordia绑sys thread的时候从cpu12开始倒绑，这意味着有一个sys thread会在numa1；以下为修复sys thread绑核bug的测试数据：
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：4077692（差别不大，之前数据仍然可用）
+
+发现我绑app thread的时候一部分线程从cpu12开始正绑，这意味着有一部分app thread会numa1；以下为修复app thread绑核bug的测试数据：
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，app/sys threads都在numa0：3988433（差别不大，之前数据仍然可用）
+3. 4机，16 App thread，8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：4049124
+3. 4机，24 App thread（修改MAX_APP_THREAD=24），8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：卡住 (!重要：继续往小cache line的方向尝试)
+3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，0 Queue thread，关闭交换机下放，sys threads在numa0，app threads在numa1：4050315
+3. 4机，16 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1：4007098 (ok,统计线程就这么加)
+
+---
+debug:
+1. 草，为什么开着加解应用锁，则dir计数少了1/4的包（本应处理加应用锁，W-miss，W-miss-unlock，解应用锁（少了这个））；
+不开加解应用锁，则dir计数正常（W-miss，W-miss-unlock）；
+
+原因：应用锁解锁时dirkey的计算方式与其他不同
+
+2. app threads超过8时性能贼差
+
+原因：app threads跟sys threads都绑在了numa0上，有重合，目前已经改成app threads绑在numa1上，sys thread绑在numa0上
+
+另注：concordia自带的bindCore函数，传入的参数core表示CPU id，在实验室集群中，CPU0-11,24-35属于numa0
+
+3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义

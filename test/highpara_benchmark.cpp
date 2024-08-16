@@ -34,12 +34,12 @@ uint64_t breakdown_size = DSM_CACHE_LINE_SIZE * breakdown_times;
 
 #define MAX_THREAD 24
 
-#define OP_NUMS 2000000
+#define OP_NUMS 2000000 //2000000
 #define OBJ_SIZE 8
 
 #define MB (1024ull * 1024)
 
-const uint64_t BLOCK_SIZE = uint64_t(MB * 31); // 31 user application space required per node
+const uint64_t BLOCK_SIZE = uint64_t(MB * 31); //uint64_t(MB * 31); // 31 user application space required per node
 
 #define SUB_PAGE_SIZE (512) // aligned byte granularity for user mem operation
 #define STEPS (BLOCK_SIZE * nodeNR / SUB_PAGE_SIZE)
@@ -320,12 +320,31 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
 
 void start_thread(int nodeID, int threadID) {
 
-  printf("checkpoint 0 on thread %d\n", threadID);
+  // printf("checkpoint 0 on thread %d\n", threadID);
   fflush(stdout);
 
-  bindCore(threadID);
+  // // 总线程数少于等于12且在numa0
+  // if(threadID < 12){
+  //   bindCore(threadID);
+  // }
 
-  printf("checkpoint 1 on thread %d\n", threadID);
+  // // 总线程数少于等于24且在numa0
+  // if(threadID < 12 - NR_CACHE_AGENT - NR_DIRECTORY){
+  //   bindCore(threadID);
+  // }
+  // else{
+  //   bindCore(threadID + 24);
+  // }
+
+  // app在numa1,sys在numa0
+  if(threadID < 12){
+    bindCore(12 + threadID);
+  }
+  else{
+    bindCore(24 + threadID);
+  }
+
+  // printf("checkpoint 1 on thread %d\n", threadID);
   fflush(stdout);
 
   dsm->registerThread();
@@ -337,12 +356,12 @@ void start_thread(int nodeID, int threadID) {
   // }
 
   // agent_stats_inst.waitForSpace();
-  printf("start warmup the cache for no-breakdown on thread %d\n", threadID);
+  // printf("start warmup the cache for no-breakdown on thread %d\n", threadID);
   fflush(stdout);
 
   Run_request(nodeID, threadID, "warmup"); // warmup
 
-  printf("checkpoint 2 on thread %d\n", threadID);
+  // printf("checkpoint 2 on thread %d\n", threadID);
   fflush(stdout);
 
   warmup_no_breakdown.fetch_add(1);
@@ -352,12 +371,12 @@ void start_thread(int nodeID, int threadID) {
     // printf("node %d start benchmark\n", nodeID);
   }
 
-  printf("start warmup the cache for breakdown on thread %d\n", threadID);
+  // printf("start warmup the cache for breakdown on thread %d\n", threadID);
   fflush(stdout);
 
   Run_cache(nodeID, threadID, "warmup"); // warmup
 
-  printf("checkpoint 3 on thread %d\n", threadID);
+  // printf("checkpoint 3 on thread %d\n", threadID);
   fflush(stdout);
 
   warmup_breakdown.fetch_add(1);
@@ -367,7 +386,7 @@ void start_thread(int nodeID, int threadID) {
     // printf("node %d start benchmark\n", nodeID);
   }
 
-  printf("checkpoint 4 on thread %d\n", threadID);
+  // printf("checkpoint 4 on thread %d\n", threadID);
   fflush(stdout);
 
   ready.fetch_add(1);
@@ -375,7 +394,7 @@ void start_thread(int nodeID, int threadID) {
   while (ready.load() != threadNR) ;
   if (threadID == 0) agent_stats_inst.start_collection();
 
-  printf("start run the benchmark on thread %d\n", threadID);
+  // printf("start run the benchmark on thread %d\n", threadID);
   fflush(stdout);
 
   Run_request(nodeID, threadID, "benchmark");
@@ -558,9 +577,9 @@ int main(int argc, char **argv) {
   // ProfilerStart("/tmp/dsm-perf");
   printf("benchmark starts\n");
   for (int i = 0; i < threadNR; ++i) {
-    printf("checkpoint 0 on main thread\n");
+    // printf("checkpoint 0 on main thread\n");
     th[i] = new std::thread(start_thread, dsm->getMyNodeID(), i);
-    printf("checkpoint 1 on main thread\n");
+    // printf("checkpoint 1 on main thread\n");
   }
 
   timespec s, e;
@@ -613,9 +632,9 @@ int main(int argc, char **argv) {
   uint64_t recv_c = dsm->keeper->sum("dir_recv", Statistics::dir_recv_all());
   uint64_t send_c = dsm->keeper->sum("dir_send", Statistics::dir_send_all());
 
-  if (dsm->myNodeID == 0) {
-    printf("recv %lu,  send %lu\n", recv_c, send_c);
-  
+  // if (dsm->myNodeID == 0) {
+  //   printf("recv %lu,  send %lu\n", recv_c, send_c);
+  // }
   // if (output_file != nullptr && dsm->myNodeID == 0) {
   //   std::ofstream f(std::string(output_file), std::ios::app);
   //   if (f) {
@@ -629,6 +648,7 @@ int main(int argc, char **argv) {
 
   /***********************************/
   /******** MY CODE STARTS ********/
+  {
     std::string common_suffix = ".txt";
     if (!fs::exists(result_directory)) {
         if (!fs::create_directory(result_directory)) {
@@ -641,10 +661,13 @@ int main(int argc, char **argv) {
     fs::path filePath = dir / fs::path("end_to_end" + common_suffix);
     file = fopen(filePath.c_str(), "a");
     assert(file != nullptr);
+    fprintf(file, "\n---new results---\n");
     fprintf(file, "dir recv count = %lu\t dir send count =  %lu\n", recv_c, send_c);
     if (dsm->myNodeID == 0) {
       fprintf(file, "sharing ratio = %d\t tp: %llu op/s; all-tp: %llu op/s\n", sharing, tp, all_tp);
     }
+
+    agent_stats_inst.print_all_false_count(file, threadNR);
 
     fclose(file);
   /******** MY CODE ENDS ********/

@@ -242,8 +242,8 @@ void DSMKeeper::initRouteRule() {
     // serverList.push_back(std::string(ip));
     // free(ip);
     // }
-    system("ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia/ccDSM/p4src/table.py");
-    system("ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia/ccDSM/p4src/mc.py");
+    system("ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/table.py");
+    system("ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/mc.py");
   }
   barrier("keeper-route-end");
 }

@@ -41,6 +41,7 @@ typedef uint32_t Tag;
 typedef uint64_t DirKey;
 
 #define DSM_CACHE_LINE_WIDTH (12) // 4K
+// #define DSM_CACHE_LINE_WIDTH (9) // 512
 #define DSM_CACHE_LINE_SIZE (1u << DSM_CACHE_LINE_WIDTH)
 
 #define DSM_CACHE_INDEX_WIDTH (16)
@@ -60,7 +61,7 @@ typedef uint64_t DirKey;
 #define RAW_RECV_CQ_COUNT 128
 
 // { app thread
-#define MAX_APP_THREAD 16
+#define MAX_APP_THREAD 24
 
 #define APP_MESSAGE_NR 96
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bin="/home/zxy/nfs/DSM_prj/concordia/ccDSM/p4src/"
+bin="/home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/"
 
 function loop_exe()
 {

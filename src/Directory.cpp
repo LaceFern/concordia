@@ -131,8 +131,7 @@ void Directory::countThread() {
 }
 
 void Directory::queueThread() {
-  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - dirID);
-  // bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - dirID);
   Debug::notifyInfo("dir queue %d launch!\n", dirID);
 
   // printf("IBV_WC_RECV = %d, IBV_WC_RDMA_WRITE = %d, IBV_WC_RECV_RDMA_WITH_IMM = %d", 
@@ -162,8 +161,7 @@ void Directory::queueThread() {
 }
 
 void Directory::processThread() {
-  // bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
-  // bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - dirID);
+  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
   Debug::notifyInfo("dir pure %d launch!!!", dirID);
 
   while (true) {
@@ -272,7 +270,7 @@ void Directory::processThread() {
 
 void Directory::dirThread() {
 
-  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - dirID);
+  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - dirID);
   Debug::notifyInfo("dir %d launch!\n", dirID);
 
   // test_change_ownership();
