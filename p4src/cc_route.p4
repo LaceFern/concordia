@@ -33,7 +33,7 @@ table dir_set_port_tbl {
     actions {
         set_port_and_qpn;
     }
-    size: 16;
+    size: 512;
 }
 
 ///////////////////////////////////////////////////
@@ -61,7 +61,7 @@ table agent_set_port_tbl {
     actions {
         set_port_and_qpn;
     }
-    size: 16;
+    size: 512;
 }
 
 @pragma stage 11
@@ -73,7 +73,7 @@ table agent_set_tbl {
     actions {
         set_qpn;
     }
-    size: 16;
+    size: 512;
 
 }
 /////////////////////////////////////////////////////

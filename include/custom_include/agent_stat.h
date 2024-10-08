@@ -24,6 +24,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "Common.h"
+
 #define MAX_WORKER_PENDING_MSG 1024
 #define MAX_SYS_THREAD 12
 #define MAX_GLB_THREAD 48
@@ -183,6 +185,10 @@ private:
 
 public:
 
+    int control_packet_send_count[MAX_APP_THREAD + MAX_SYS_THREAD] = {0};
+    int data_packet_send_count[MAX_APP_THREAD + MAX_SYS_THREAD] = {0};
+    
+
     uint64_t rdtsc() {
       unsigned int lo, hi;
       __asm__ __volatile__("rdtsc" : "=a" (lo), "=d" (hi));
@@ -262,6 +268,8 @@ public:
     // because each app thread only process the response of the queries it send,
     // which is far less than packets that need process in cache node and home node.
     // Besides, waiting time in request node can't be reduced by increasing sys threads
+    double microseconds = 0;
+    int nr_app = 0;
     int nr_dir = 0;
     int nr_cache_agent = 0;
     uint64_t sys_thread_num = 0;
@@ -434,6 +442,29 @@ public:
         fs::path result_directory(result_dir);
         fs::path filePath;
 
+        filePath = result_directory / fs::path("WITH_CC" + common_suffix);
+        file = fopen(filePath.c_str(), "w");
+        assert(file != nullptr);
+        memaccess_type_stats[MEMACCESS_TYPE::WITH_CC]->print(file, 5);
+        fclose(file);
+
+        filePath = result_directory / fs::path("WITHOUT_CC" + common_suffix);
+        file = fopen(filePath.c_str(), "w");
+        assert(file != nullptr);
+        memaccess_type_stats[MEMACCESS_TYPE::WITHOUT_CC]->print(file, 5);
+        fclose(file);
+
+        filePath = result_directory / fs::path("DONT_DISTINGUISH" + common_suffix);
+        file = fopen(filePath.c_str(), "w");
+        assert(file != nullptr);
+        memaccess_type_stats[MEMACCESS_TYPE::DONT_DISTINGUISH]->print(file, 5);
+        fclose(file);
+
+        save_clean_stat(result_dir, "WITH_CC");
+        save_clean_stat(result_dir, "WITHOUT_CC");
+        save_clean_stat(result_dir, "DONT_DISTINGUISH");
+
+
         if(is_request){
             filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_LOCK" + common_suffix);
             file = fopen(filePath.c_str(), "w");
@@ -574,6 +605,47 @@ public:
         fclose(file);        
 
 
+        filePath = result_directory / fs::path("SEND_PACKET_COUNT" + common_suffix);
+        file = fopen(filePath.c_str(), "a");
+        assert(file != nullptr);
+        int control_packet_send_count_total = 0;
+        int data_packet_send_count_total = 0;
+        for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+            control_packet_send_count_total += control_packet_send_count[i];
+            data_packet_send_count_total += data_packet_send_count[i];
+        }
+
+
+        fprintf(file, "\nmicroseconds:%.2lf\n", microseconds);
+        fprintf(file, "MBps total=(%.2lf, %.2lf)\t", 1.0 * control_packet_send_count_total * 74 / microseconds, 1.0 * data_packet_send_count_total * DSM_CACHE_LINE_SIZE / microseconds);
+        fprintf(file, "MPps total=(%.2lf, %.2lf)\n", 1.0 * control_packet_send_count_total / microseconds, 1.0 * data_packet_send_count_total / microseconds);
+
+        // fprintf(file, "packet count:\t");
+        // for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+        //     if(i < nr_app){
+        //         fprintf(file, "app[%d]=(%d, %d)\t", i, control_packet_send_count[i], data_packet_send_count[i]);
+        //     }
+        //     else if(i >= MAX_APP_THREAD && i < MAX_APP_THREAD + sys_thread_num){
+        //         fprintf(file, "sys[%d]=(%d, %d)\t", i - MAX_APP_THREAD, control_packet_send_count[i], data_packet_send_count[i]);
+        //     }
+        // }
+        // fprintf(file, "total=(%d, %d)\n", control_packet_send_count_total, data_packet_send_count_total);
+        
+        // fprintf(file, "net throughput (MBps):\t");
+        // for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+        //     if(i < nr_app){
+        //         fprintf(file, "app[%d]=(%.2lf, %.2lf)\t", i, 1.0 * control_packet_send_count[i] * 74 / microseconds, 1.0 * data_packet_send_count[i] * DSM_CACHE_LINE_SIZE / microseconds);
+        //     }
+        //     else if(i >= MAX_APP_THREAD && i < MAX_APP_THREAD + sys_thread_num){
+        //         fprintf(file, "sys[%d]=(%.2lf, %.2lf)\t", i - MAX_APP_THREAD, 1.0 * control_packet_send_count[i] * 74 / microseconds, 1.0 * data_packet_send_count[i] * DSM_CACHE_LINE_SIZE / microseconds);
+        //     }
+        // }
+        // fprintf(file, "total=(%.2lf, %.2lf)\n", 1.0 * control_packet_send_count_total * 74 / microseconds, 1.0 * data_packet_send_count_total * DSM_CACHE_LINE_SIZE / microseconds);
+        
+        fclose(file); 
+        
+
+        
         for (size_t i = 0;i < sys_with_queue_num; i++) {
             if(is_home){
                 filePath = result_directory / fs::path("QTST_" + std::to_string(i) + "_PROCESS_IN_HOME_NODE" + common_suffix);
@@ -609,6 +681,10 @@ public:
             fclose(file);
             save_clean_stat(result_dir, "QTST_" + std::to_string(i) + "_PROCESS_NOT_TARGET");
         }
+    }
+
+    bool is_valid_gaddr_without_start(GAddr gaddr) {
+        return valid_gaddrs.count(gaddr);
     }
 
     bool is_valid_gaddr(GAddr gaddr) {

@@ -24,19 +24,19 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
 
   mybitmap = 1 << nodeID;
 
-  // sysID = NR_DIRECTORY + agentID;
-  // agent = new std::thread(&CacheAgent::agentThread, this);
   sysID = NR_DIRECTORY + agentID;
-  if(agentID < agent_stats_inst.cache_queue_num){
-    queueID = agent_stats_inst.dir_queue_num + agentID;
-    agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
+  agent = new std::thread(&CacheAgent::agentThread, this);
+  // sysID = NR_DIRECTORY + agentID;
+  // if(agentID < agent_stats_inst.cache_queue_num){
+  //   queueID = agent_stats_inst.dir_queue_num + agentID;
+  //   agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
 
-    processTh = new std::thread(&CacheAgent::processThread, this);
-    agent = new std::thread(&CacheAgent::queueThread, this);
-  }
-  else{
-    agent = new std::thread(&CacheAgent::agentThread, this);
-  }
+  //   processTh = new std::thread(&CacheAgent::processThread, this);
+  //   agent = new std::thread(&CacheAgent::queueThread, this);
+  // }
+  // else{
+  //   agent = new std::thread(&CacheAgent::agentThread, this);
+  // }
 }
 
 void CacheAgent::queueThread() {
@@ -244,6 +244,7 @@ void CacheAgent::processReadMissInv(RawMessage *m) {
 
     m->state = CacheStatus::SHARED;
     sendData2App(m, line, w.wrId);
+    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -261,12 +262,15 @@ void CacheAgent::processReadMissInv(RawMessage *m) {
 #ifdef READ_MISS_DIRTY_TO_DIRTY
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
   sendData2App(m, line, w.wrId);
+  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_SHARED;
   sendData2Dir(m, line, RawMessageType::R_READ_MISS, w.wrId);
+  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 
   w.type = AgentPendingReason::NOP;
   sendData2App(m, line, w.wrId);
+  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 
@@ -303,8 +307,10 @@ void CacheAgent::processWriteMissInvShared(RawMessage *m) {
 
 #ifndef BASELINE
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS);
+  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS_BASELINE);
+  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 
@@ -341,6 +347,7 @@ void CacheAgent::processWriteMissInvDirty(RawMessage *m) {
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
 
   sendData2App(m, line, w.wrId);
+  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void CacheAgent::processWriteSharedInv(RawMessage *m) {
@@ -362,8 +369,10 @@ void CacheAgent::processWriteSharedInv(RawMessage *m) {
 
 #ifndef BASELINE
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED);
+  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED_BASELINE);
+  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 

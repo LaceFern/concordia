@@ -41,6 +41,10 @@ concordia仓库原名ccDSM！
 
 4. 如果需要使用highpara_benchmark.py脚本，需要配置sudo指令免密执行，完善py内的一些初始化参数和对应arp文件
 
+5. 注意auto_run.sh和auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目，要按需修改（不要用脚本修改，nfs同步可能有时间差）
+
+6. 如果出现Thrift error dirQP: TException - service has thrown: InvalidTableOperation(code=9)或Thrift error agentQP: TException - service has thrown: InvalidTableOperation(code=9)，说明dir_set_port_tbl和agent_set_tbl开小了
+
 # 编译运行交换机代码
 进入./p4src文件夹
 
@@ -72,6 +76,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
 ![shared file error](images/generate_tofino_pd.png)
 
+3. 交换机debug
+
+命令行输入 bfshell 进入bfshell，输入 ucli ，然后输入 show
 
 # 编译服务器代码
 cd ccDSM/build; cmake ..; make -j;
@@ -128,7 +135,9 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 一般是arp缓存有问题，执行arp-*.sh，使用arp -a查看
 
-如果在运行highpara_benchmark.py过程中遇到该问题，记得运行kill_all.py
+如果在运行highpara_benchmark.py过程中遇到该问题（伴随show_gids发现网卡INDEX不连续（正确：0 1 2 3，错误：0 1 2 4）），记得运行kill_all.py
+
+重要！记得检查kill_all.py中是否真的把所有机器上的原先进程都杀掉了
 
 2. 在DSMKepper.cpp里进行了远程ssh的执行:
 
@@ -157,6 +166,11 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 10. sharing: 所有内存操作中，针对不共享的空间（注意：系统支持共享，但应用避开了对这部分空间的共享访问）进行访问的内存操作占比[初始值:50]
 11. readNR: 所有内存操作中，读操作占比[初始值:50]
 12. OP_NUM：2000000
+13. DIR_MESSAGE_NR 128
+13. AGENT_MESSAGE_NR 96
+14. APP_MESSAGE_NR 96
+14. POST_RECV_PER_RC_QP 128
+14. RAW_RECV_CQ_COUNT 128
 
 # 绑核
 线程数少于12，都绑numa0
@@ -343,8 +357,126 @@ P99
 3. 4机，22 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx,失败事务重试间隔为指数退避，OP_NUM=200000：5252286
 3. 4机，22 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx，OP_NUM=200000：5239324
 3. 4机，24 App thread（修改MAX_APP_THREAD=24），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa1, breakdown_times=16384，注释try to xxx，OP_NUM=200000：5733557
-3. 4机，28 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6048218 (重试6014363)
+3. 4机，28 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避（fail_count/10000），OP_NUM=200000：6048218 (重试6014363)
 3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6827330 (重试（删了指数退避相关内容）6472483)
+3. 4机，36 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：卡住
+3. 4机，34 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6962919
+3. 4机，35 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：卡住
+3. 4机，34 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避：≈卡住
+
+3. 4机，34 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，添加对CC占比的统计信息：第一遍卡住，第二遍卡住
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000：6425207
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，添加对CC占比的统计信息：6445653，卡住，卡住，6490460，观察到几乎所有的内存操作都触发了缓存一致性维护，并没有因为目录粒度粗而增加本地命中概率
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避（fail_count/100），OP_NUM=200000，添加对CC占比的统计信息：6346183
+
+3. 4机，34 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避（fail_count/100），OP_NUM=200000，添加对CC占比的统计信息：卡住
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，添加对CC占比的统计信息，添加端到端延迟打印：6.9M (发现大部分事务都没有触发缓存一致性维护？)
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，添加对CC占比的统计信息，添加端到端延迟打印，DSM_CACHE_LINE=512：卡住
+
+3. 4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，添加对CC占比的统计信息，添加端到端延迟打印，不预热cache：6466733 (发现大部分事务都没有触发缓存一致性维护？)
+
+发现是检测一次内存操作是否触发一致性维护的方法有误，目前只在readmiss和writemiss函数中统计触发了cc txn的次数
+
+---------
+开始对特定链路进行breakdown，通用配置为：4机，32 App thread（修改MAX_APP_THREAD=48, MAX_THREAD=48），8 Sys thread，2 Queue thread，关闭交换机下放，sys/queue threads在numa0，app threads在numa0和1, breakdown_times=16384，注释try to xxx，失败事务重试间隔为线性退避，OP_NUM=200000，不添加对CC占比的统计信息，添加端到端延迟打印
+
+concordia_result_7_break_down
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0
+1. 32 App thread, request_type = 1, cache_init = 1, cache_type = 1
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0
+1. 1 App thread, request_type = 1, cache_init = 1, cache_type = 1
+1. request_type = 1, cache_init = 0, cache_type = 0, request初始化为持有可读副本(跑了很多次，发现没有针对writeshared搜集统计信息导致没有async time)
+
+concordia_result_7_break_down_v2
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0, request初始化为持有可读副本(通过修改py脚本中的requester_run函数中的is_cache输入实现)
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0, request初始化为持有可读副本(通过修改py脚本中的requester_run函数中的is_cache输入实现),线性退避（fail_count/100）
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）
+发现home节点没有计数？草，需要确保py脚本中的home node id符合启动顺序（通过sleep解决）
+
+concordia_result_7_break_down_v3
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0, request初始化为持有可读副本(通过修改py脚本中的requester_run函数中的is_cache输入实现)
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0, request初始化为持有可读副本(通过修改py脚本中的requester_run函数中的is_cache输入实现),线性退避（fail_count/100）
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）, 添加统计CC事务比例
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）
+1. 34 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR ，APP_MESSAGE_NR 值(没用，已改回)
+1. 34 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024
+
+发现4KB数据包把网络吞吐占完了。而大数据包pps低，并不容易受qp爆炸影响（qp爆炸影响的是pps，因为nic cache miss会导致后续的包等待更长的时间才能被处理）
+-----------------------
+concordia_result_7_break_down_v5（修改cache line size）
+1. 16 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 4625556, MBps total=(613.52, 938.01), Mpps total=(8, 1.8)
+
+1. 20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 卡住
+
+1. 16 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024：3975482, MBps total=(536.70, 6570.10), Mpps total=(7.2, 1.6)
+
+1. 32 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024：6340176, MBps total=(847.46, 10163.19),	MPps total=(11.45, 2.48)
+
+1. 18 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 5154085, MBps total=(675.93, 1029.49),	MPps total=(9.13, 2.01)
+
+1. 19 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 5386344, MBps total=(699.29, 1065.67)	MPps total=(9.45, 2.08)
+
+1. 20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 5632595, MBps total=(732.83, 1125.37)	MPps total=(9.90, 2.20)
+
+1. 22 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 6120561, MBps total=(789.35, 1201.18)	MPps total=(10.67, 2.35)
+
+1. 24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 6638869, MBps total=(836.34, 1267.68)	MPps total=(11.30, 2.48)
+
+1. 26 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B: 卡住
+
+1. 26 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为1024，修改cache line size为512B，修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR为256：卡住
+
+1. 26 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改cache line size为512B：7018564, MBps total=(894.52, 1352.84)	MPps total=(12.09, 2.64)
+
+1. 28 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改cache line size为512B：卡住
+
+1. 1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：（为了做ppt）
+
+------
+8机
+
+1. 4机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：5761332
+
+1. 5机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：6643487
+
+1. 7机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：卡住，8619019
+
+1. 8机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：卡住
+
+1. 7机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，开启交换机下放：12029463
+
+1. 8机，24 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384：卡住
+
+1. 8机，20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，开启交换机下放：11578836
+
+1. 8机，20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，不开启交换机下放：8292097
+
+1. 8机，20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR为2048，不开启交换机下放， cache line size=512B：卡住
+
+1. 8机，20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，不开启交换机下放， cache line size=512B：卡住
+
+1. 4机，20 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR为2048，不开启交换机下放， cache line size=512B：卡住（先观察能不能看到卡住的现象，然后用gdb attach debug）
+
+1. 4机，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR为2048，不开启交换机下放， cache line size=512B：卡住（先观察能不能看到卡住的现象，然后用gdb attach debug）
+
+1. 2机(注释t3，t4，并把4+替换为2+,增加run_request中的轮次信息)，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，修改DIR_MESSAGE_NR，AGENT_MESSAGE_NR为2048，不开启交换机下放， cache line size=512B, 无queue thread：卡住，所有线程都在pollwithcq
+
+1. 2机(注释t3，t4，并把4+替换为2+,增加run_request中的轮次信息)，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，修改RAW_RECV_CQ_COUNT为16384，不开启交换机下放， cache line size=512B, 无queue thread：卡住
+
+1. 2机(注释t3，t4，并把4+替换为2+,增加run_request中的轮次信息)，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，不开启交换机下放， cache line size=512B, 无queue thread：卡住
+
+1. 2机(注释t3，t4，并把4+替换为2+,增加run_request中的轮次信息)，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，不开启交换机下放， 无queue thread：卡住
+
+1. 4机，1 App thread, request_type = 1, cache_init = 0, cache_type = 0,线性退避（fail_count/100）,统计控制包和数据包的数量，不开启交换机下放， 无queue thread：331889
+？为什么4机能跑通2机不能跑通？？？？？？？？？
 ---
 debug:
 1. 草，为什么开着加解应用锁，则dir计数少了1/4的包（本应处理加应用锁，W-miss，W-miss-unlock，解应用锁（少了这个））；

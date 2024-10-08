@@ -74,7 +74,7 @@ void Controller::dirQP(uint16_t qpn, uint8_t dirID) {
     client->dir_set_port_tbl_table_add_with_set_port_and_qpn(session, dev_tgt,
                                                              k, v);
   } catch (TException &tx) {
-    Debug::notifyError("Thrift error dirQP: %s", tx.what());
+    Debug::notifyError("Thrift error dirQP: %s, myNodeID = %d", tx.what(), myNodeID);
   }
 }
 

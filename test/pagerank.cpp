@@ -6,7 +6,7 @@
 
 #define MAX_THREAD 24
 
-#define LNODESIZE (1 + 8 + 8)
+#define LNODESIZE (1 + 8 + 8) //是全局内存中的一段LNODE信息的长度
 #define MB (1024 * 1024)
 #define TOLERANCE (1e-2)
 typedef uint64_t ull;
@@ -23,8 +23,8 @@ ull totedge;
 struct Edge {
   ull from;
   ull to;
-  long long nextf;
-  long long nextt;
+  long long nextf; //存储的是与当前起点相同的其他边的索引，用于将同一个起点的边连接起来，形成起点的出边链表。
+  long long nextt; //存储的是与当前终点相同的其他边的索引，用于将同一个终点的边连接起来，形成终点的入边链表。
 } edge[30 * MB];
 
 ull activeE[30 * MB];
@@ -37,12 +37,12 @@ struct Node {
 struct LocalNode {
   double rank;
   ull id;
-  long long nextf;
-  long long nextt;
+  long long nextf; //该节点的出边链表的第一个边的索引。通过 边的nextf 字段可以逐步访问所有从该节点发出的边。
+  long long nextt; //该节点的入边链表的第一个边的索引。通过 边的nextt 字段可以逐步访问所有指向该节点的边。
 } lnode[6 * MB];
 ull outnum[6 * MB];
 ull activeN[6 * MB];
-long long storeid[6 * MB];
+long long storeid[6 * MB]; //无论某个node从nodeID的角度是否属于本节点，该node都会存在在本地lnode/edge/storeid中
 void parserArgs(int argc, char **argv) {
   graph_dir = argv[1];
   nodeNR = std::atoi(argv[2]);

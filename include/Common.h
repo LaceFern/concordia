@@ -69,12 +69,12 @@ typedef uint64_t DirKey;
 // }
 
 // { cache agent thread
-#define NR_CACHE_AGENT 4
+#define NR_CACHE_AGENT 1
 
 #define AGENT_MESSAGE_NR 96
 
 // { dir thread
-#define NR_DIRECTORY 4
+#define NR_DIRECTORY 1
 
 #define DIR_MESSAGE_NR 128
 // }

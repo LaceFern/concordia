@@ -181,6 +181,7 @@ void Run_cache(int nodeID, int threadID, const std::string &prefix) {
         switch (cache_rw) {
         case 0: {
           dsm->Try_RLock(to_access_breakdown, OBJ_SIZE);
+          // if (agent_stats_inst.is_valid_gaddr_without_start(to_access_breakdown.addr)) printf("readline: Im here!\n");
           dsm->read(to_access_breakdown, OBJ_SIZE, to);
           dsm->UnLock(to_access_breakdown, OBJ_SIZE);
           break;
@@ -293,6 +294,8 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
     clock_gettime(CLOCK_REALTIME, &s);
 #endif
 
+    // if(threadID == 0) agent_stats_inst.start_record_with_memaccess_type();
+
     if (isRead) {
 
       // printf("checkpoint 1.2 on thread %d: target node id = %d, op = %d\n", threadID, thread_access_[op].nodeID, op);
@@ -306,6 +309,8 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
 
       dsm->write(thread_access_[op], OBJ_SIZE, from);
     }
+
+    // if(threadID == 0) agent_stats_inst.stop_record_with_memaccess_type();
 
 #ifdef SHOW_LATENCY
     clock_gettime(CLOCK_REALTIME, &e);
@@ -405,13 +410,6 @@ void start_thread(int nodeID, int threadID) {
 
   // Debug::notifyInfo("node %d thread %d finish, evict time %llu", nodeID,
   //                   threadID, evict_time);
-
-  if (threadID == 0) {
-    // agent_stats_inst.print_app_thread_stat();
-    // agent_stats_inst.print_multi_poll_thread_stat();
-    // agent_stats_inst.print_multi_sys_thread_stat();
-    agent_stats_inst.save_stat_to_file(std::string(result_directory), agent_stats_inst.sys_thread_num, threadNR);
-  }
 }
 
 // void start_thread(int nodeID, int threadID) {
@@ -529,12 +527,13 @@ int main(int argc, char **argv) {
   agent_stats_inst.is_home = is_home;
   agent_stats_inst.nr_dir = NR_DIRECTORY;
   agent_stats_inst.nr_cache_agent = NR_CACHE_AGENT;
+  agent_stats_inst.nr_app = threadNR;
   // printf("checkpoint -6 on main thread: agent_stats_inst.nr_dir = %d\n", agent_stats_inst.nr_dir);
   // printf("checkpoint -5 on main thread: agent_stats_inst.nr_cache_agent = %d\n", agent_stats_inst.nr_cache_agent);
   /******** MY CODE ENDS ********/
   /***********************************/
 
-  uint64_t sys_total_size = 16; //GB
+  uint64_t sys_total_size = 4; //GB
   DSMConfig conf(CacheConfig(), nodeNR, sys_total_size); // 4G per node;
 
   /***********************************/
@@ -652,6 +651,12 @@ int main(int argc, char **argv) {
   /***********************************/
   /******** MY CODE STARTS ********/
   {
+    // agent_stats_inst.print_app_thread_stat();
+    // agent_stats_inst.print_multi_poll_thread_stat();
+    // agent_stats_inst.print_multi_sys_thread_stat();
+    agent_stats_inst.microseconds = microseconds;
+    agent_stats_inst.save_stat_to_file(std::string(result_directory), agent_stats_inst.sys_thread_num, threadNR);
+
     std::string common_suffix = ".txt";
     if (!fs::exists(result_directory)) {
         if (!fs::create_directory(result_directory)) {
@@ -667,10 +672,10 @@ int main(int argc, char **argv) {
     fprintf(file, "\n---new results---\n");
     fprintf(file, "dir recv count = %lu\t dir send count =  %lu\n", recv_c, send_c);
     if (dsm->myNodeID == 0) {
-      fprintf(file, "sharing ratio = %d\t tp: %llu op/s; all-tp: %llu op/s\n", sharing, tp, all_tp);
+      fprintf(file, "sharing ratio = %d\t tp: %llu op/s; all-tp: %llu op/s; seconds: %lf\n", sharing, tp, all_tp, microseconds/1000/1000);
     }
 
-    agent_stats_inst.print_all_false_count(file, threadNR);
+    // agent_stats_inst.print_all_false_count(file, threadNR);
 
     fclose(file);
   /******** MY CODE ENDS ********/

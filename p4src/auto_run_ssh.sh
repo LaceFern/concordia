@@ -30,7 +30,7 @@ while true ; do
     $SDE_INSTALL/bin/bfshell -f $bin/port_show.txt > port_data
     up_ports=`grep -c UP $bin/port_data`
     echo $up_ports
-    if [ $up_ports == "4" ] ; then
+    if [ $up_ports == "8" ] ; then
         break
     fi
 done

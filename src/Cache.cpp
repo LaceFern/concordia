@@ -115,14 +115,13 @@ retry:
     assert(false);
 
     uint64_t delay = counter;
-    for(int i = 0; i < delay / 100000; i++);
+    for(int i = 0; i < delay / 1000; i++);
   }
 #endif
 
   LineInfo *info;
 
   if (!findLine(addr, info)) { // miss in cache;
-
     assert(info->getTag() == addr.getTag() &&
            info->getStatus() == CacheStatus::BEING_FILL);
     if (!readMiss(addr, info)) {
@@ -142,6 +141,13 @@ retry:
     info->setTimeStamp();
     memcpy(to, (char *)info->data + start, size);
   }
+
+  // // debug
+  // if (agent_stats_inst.is_valid_gaddr_without_start(addr.addr)) {
+  //   findLine(addr, info);
+  //   printf("readline: info->getStatus() = %d\n", (int)info->getStatus());
+  // }
+
   info->writeEvictLock.rUnlock();
 }
 
@@ -178,7 +184,7 @@ retry:
         assert(false);
 
         uint64_t delay = write_miss_counter;
-        for(int i = 0; i < delay / 10000; i++);
+        for(int i = 0; i < delay / 100; i++);
       }
 #endif
       goto retry;
@@ -187,17 +193,16 @@ retry:
 
   if (info->getStatus() == CacheStatus::SHARED) {
     if (!writeShared(addr, info)) {
-
+      
 #ifdef DEADLOCK_DETECTION
       if (write_shared_counter++ > 10000) {
         // printf("(%d, %d)  try to writeshared %lx, %d fail!!!!\n", dsm->myNodeID,iId, addr.getDirKey(), addr.nodeID);
         assert(false);
 
         uint64_t delay = write_shared_counter;
-        for(int i = 0; i < delay / 10000; i++);
+        for(int i = 0; i < delay / 100; i++);
       }
 #endif
-
       goto retry;
     }
   }
@@ -213,6 +218,13 @@ retry:
     info->setTimeStamp();
     memcpy((char *)info->data + start, from, size);
   }
+
+  // // debug
+  // if (agent_stats_inst.is_valid_gaddr(addr.addr)) {
+  //   findLine(addr, info);
+  //   printf("writeline: info->getStatus() = %d\n", (int)info->getStatus());
+  // }
+
   info->writeEvictLock.rUnlock();
 }
 
@@ -548,9 +560,11 @@ void Cache::sendUnlock(uint16_t bitmap, uint8_t state, uint8_t dirNodeID,
 }
 
 bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
+  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_READ_MISS, addr.nodeID, dirKey);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -574,6 +588,7 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef READ_MISS_DIRTY_TO_DIRTY
       info->setStatus(CacheStatus::MODIFIED);
       sendUnlock(dsm->mybitmap, RawState::S_DIRTY, addr.nodeID, dirKey);
+      agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
       pollWithCQ(iCon->cq, 1, &wc);
       assert(wc.opcode == IBV_WC_RECV);
@@ -584,9 +599,11 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef R_W_CC
       sendUnlock(dsm->mybitmap, RawState::S_SHARED, addr.nodeID, dirKey,
                  RawMessageType::R_READ_MISS_UNLOCK);
+      agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
       sendUnlock(dsm->mybitmap | imm->bitmap, RawState::S_SHARED, addr.nodeID,
                  dirKey);
+      agent_stats_inst.control_packet_send_count[iId] += 1;
 #endif
 
 #endif
@@ -603,8 +620,10 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef R_W_CC
         sendUnlock(dsm->mybitmap, RawState::S_SHARED, addr.nodeID, dirKey,
                    RawMessageType::R_READ_MISS_UNLOCK);
+        agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
         sendUnlock(dsm->mybitmap, RawState::S_SHARED, addr.nodeID, dirKey);
+        agent_stats_inst.control_packet_send_count[iId] += 1;
 #endif
         break;
       case RawState::S_SHARED:
@@ -614,9 +633,11 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef R_W_CC
         sendUnlock(dsm->mybitmap, RawState::S_SHARED, addr.nodeID, dirKey,
                    RawMessageType::R_READ_MISS_UNLOCK);
+        agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
         sendUnlock(dsm->mybitmap | imm->bitmap, RawState::S_SHARED, addr.nodeID,
                    dirKey);
+        agent_stats_inst.control_packet_send_count[iId] += 1;
 #endif
         break;
       default:
@@ -663,9 +684,11 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #ifdef R_W_CC
       sendUnlock(dsm->mybitmap, RawState::S_SHARED, addr.nodeID, dirKey,
                  RawMessageType::R_READ_MISS_UNLOCK);
+      agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
       sendUnlock(dsm->mybitmap | imm->bitmap, RawState::S_SHARED, addr.nodeID,
                  dirKey);
+      agent_stats_inst.control_packet_send_count[iId] += 1;
 #endif
 
       return true;
@@ -676,8 +699,11 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 }
 
 bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
+  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
+
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_WRITE_MISS, addr.nodeID, dirKey);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -705,7 +731,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
 
       info->setStatus(CacheStatus::MODIFIED);
       sendUnlock(dsm->mybitmap, RawState::S_DIRTY, addr.nodeID, dirKey);
-
+      agent_stats_inst.control_packet_send_count[iId] += 1;
       // rdmaReceive(iCon->fromAgent[dirID][agentNodeID], 0, 0, 0);
       return true;
     }
@@ -806,18 +832,25 @@ succ:
 
   info->setStatus(CacheStatus::MODIFIED);
   sendUnlock(dsm->mybitmap, RawState::S_DIRTY, addr.nodeID, dirKey);
-
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   // rdmaReceive(iCon->data[dirID][addr.nodeID], 0, 0, 0);
   return true;
 }
 
 bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
+  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_WRITE_SHARED, addr.nodeID, dirKey);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE);
 
+  agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
+
+  agent_stats_inst.start_record_app_thread(addr.addr);
 
   assert(wc.opcode == IBV_WC_RECV);
   RawMessage *ack = (RawMessage *)iCon->message->getMessage();
@@ -862,6 +895,7 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
 
     info->setStatus(CacheStatus::MODIFIED);
     sendUnlock(dsm->mybitmap, RawState::S_DIRTY, addr.nodeID, dirKey);
+    agent_stats_inst.control_packet_send_count[iId] += 1;
     return true;
     break;
   }
@@ -869,6 +903,7 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
   case RawMessageType::DIR_2_APP_WRITE_SHARED_BASELINE: {
     info->setStatus(CacheStatus::MODIFIED);
     sendUnlock(dsm->mybitmap, RawState::S_DIRTY, addr.nodeID, dirKey);
+    agent_stats_inst.control_packet_send_count[iId] += 1;
     return true;
     break;
   }
@@ -899,7 +934,7 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_EVICT_SHARED, addr.nodeID, dirKey);
-
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   struct ibv_wc wc;
 
   pollWithCQ(iCon->cq, 1, &wc);
@@ -929,6 +964,7 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
 
     sendUnlock(new_bitmap, new_state, addr.nodeID, dirKey,
                RawMessageType::R_UNLOCK_EVICT);
+    agent_stats_inst.control_packet_send_count[iId] += 1;
     return true;
     break;
   }
@@ -947,7 +983,7 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_EVICT_DIRTY, addr.nodeID, dirKey);
-
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   struct ibv_wc wc;
 
   pollWithCQ(iCon->cq, 1, &wc);
@@ -974,6 +1010,7 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
               remoteInfo[addr.nodeID].dsmBase + DirKey2Addr(dirKey),
               DSM_CACHE_LINE_SIZE, iCon->cacheLKey,
               remoteInfo[addr.nodeID].dsmRKey[dirID], -1, true, 0);
+    agent_stats_inst.data_packet_send_count[iId] += 1;
 
     pollWithCQ(iCon->cq, 1, &wc);
 
@@ -985,6 +1022,7 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
 
     sendUnlock(0, RawState::S_UNSHARED, addr.nodeID, dirKey,
                RawMessageType::R_UNLOCK_EVICT);
+    agent_stats_inst.control_packet_send_count[iId] += 1;
 
     return true;
     break;
@@ -1017,6 +1055,7 @@ bool Cache::r_lock(const GlobalAddress &addr, uint32_t size) {
 
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_LOCK, addr.nodeID, dirKey,
                   false);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -1070,6 +1109,7 @@ void Cache::r_unlock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue un lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_UNLOCK, addr.nodeID,
                   dirKey, false);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_UNLOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -1099,6 +1139,7 @@ bool Cache::w_lock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue w lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_LOCK, addr.nodeID, dirKey,
                   false);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -1151,6 +1192,7 @@ void Cache::w_unlock(const GlobalAddress &addr, uint32_t size) {
   // printf("issue un lock %lx\n", info.data);
   sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_UNLOCK, addr.nodeID,
                   dirKey, false);
+  agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_UNLOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);

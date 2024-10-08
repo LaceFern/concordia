@@ -34,15 +34,30 @@ cache_machine = "192.168.189.10"
 cache_nic_name = "enp62s0np0"
 cache_arp_script = "arp-r4.sh"
 
+# cache_machine = "192.168.189.12"
+# cache_nic_name = "enp28s0np0"
+# cache_arp_script = "arp-r2-3.sh"
+
+#amax6好像有问题
+
 other_machine = []
 other_nic_name = []
 other_arp_script = []
 
-output_directory = "/home/zxy/concordia_result_6_target_cc_txn"
+# other_machine = ["192.168.189.11", "192.168.189.13", "192.168.189.14"]
+# other_nic_name = ["enp65s0np0", "enp28s0np0", "enp28s0np0"]
+# other_arp_script = ["arp-r1.sh", "arp-r2-3.sh", "arp-r2-3.sh"]
+
+# other_machine = ["192.168.189.11", "192.168.189.12", "192.168.189.13", "192.168.189.14"]
+# other_nic_name = ["enp65s0np0", "enp28s0np0", "enp28s0np0", "enp28s0np0"]
+# other_arp_script = ["arp-r1.sh", "arp-r2-3.sh", "arp-r2-3.sh", "arp-r2-3.sh"]
+
+
+output_directory = "/home/zxy/concordia_result_7_break_down_v7"
 program_name = "highpara_benchmark"
 
 # app_thread_num = [24]
-app_thread_num = [32]
+app_thread_num = [1]
 
 # RLock is 0, WLock is 1
 request_type = 1
@@ -176,12 +191,12 @@ def cache_run(ssh, program, app_thread_num, output_dir, node_num, nic_name):
             break
 
 def other_run(ssh, program, app_thread_num, output_dir, node_num, nic_name):
-    print("export NIC_NAME={7} && cd {0}/build && sudo -E ./{1} "
+    print("export NIC_NAME={6} && cd {0}/build && sudo -E ./{1} "
         "--no_node {2} --no_thread {3} "
         "--locality 0 --shared_ratio 100 --read_ratio 50 "
         "--is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
         "--result_dir {5}".format(base, program, node_num, app_thread_num, home_node_id, output_dir, nic_name))
-    stdin, stdout, stderr = ssh.exec_command("export NIC_NAME={7} && cd {0}/build && sudo -E ./{1} "
+    stdin, stdout, stderr = ssh.exec_command("export NIC_NAME={6} && cd {0}/build && sudo -E ./{1} "
         "--no_node {2} --no_thread {3} "
         "--locality 0 --shared_ratio 100 --read_ratio 50 "
         "--is_cache 0 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id {4} "
@@ -232,14 +247,10 @@ if __name__ == '__main__':
         # init node (page)
         if(init_page):
             print("init node (page) starts")
-            t1 = threading.Thread(target=node_init_4_page,
-                                    args=(ssh_master,))
-            t2 = threading.Thread(target=node_init_4_page,
-                                    args=(ssh_requester,))
-            t3 = threading.Thread(target=node_init_4_page,
-                                    args=(ssh_home,))
-            t4 = threading.Thread(target=node_init_4_page,
-                                    args=(ssh_cache,))
+            t1 = threading.Thread(target=node_init_4_page, args=(ssh_master,))
+            t2 = threading.Thread(target=node_init_4_page, args=(ssh_requester,))
+            t3 = threading.Thread(target=node_init_4_page, args=(ssh_home,))
+            t4 = threading.Thread(target=node_init_4_page, args=(ssh_cache,))
             tother_list = [threading.Thread(target=node_init_4_page,
                                     args=(ssh_others[i],))  for i in range(len(ssh_others))]            
             t1.start()
@@ -258,16 +269,11 @@ if __name__ == '__main__':
 
         # init node (arp_and_memcache)
         print("init node (arp_and_memcache) starts")
-        t1 = threading.Thread(target=node_init_4_arp_and_memcache,
-                                args=(ssh_master, master_arp_script, True, master_nic_name))
-        t2 = threading.Thread(target=node_init_4_arp_and_memcache,
-                                args=(ssh_requester, requester_arp_script, False, requester_nic_name))
-        t3 = threading.Thread(target=node_init_4_arp_and_memcache,
-                                args=(ssh_home, home_arp_script, False, home_nic_name))
-        t4 = threading.Thread(target=node_init_4_arp_and_memcache,
-                                args=(ssh_cache, cache_arp_script, False, cache_nic_name))
-        tother_list = [threading.Thread(target=node_init_4_arp_and_memcache,
-                                args=(ssh_others[i], other_arp_script[i], False, other_nic_name[i]))  for i in range(len(ssh_others))]            
+        t1 = threading.Thread(target=node_init_4_arp_and_memcache, args=(ssh_master, master_arp_script, True, master_nic_name))
+        t2 = threading.Thread(target=node_init_4_arp_and_memcache, args=(ssh_requester, requester_arp_script, False, requester_nic_name))
+        t3 = threading.Thread(target=node_init_4_arp_and_memcache, args=(ssh_home, home_arp_script, False, home_nic_name))
+        t4 = threading.Thread(target=node_init_4_arp_and_memcache, args=(ssh_cache, cache_arp_script, False, cache_nic_name))
+        tother_list = [threading.Thread(target=node_init_4_arp_and_memcache, args=(ssh_others[i], other_arp_script[i], False, other_nic_name[i]))  for i in range(len(ssh_others))]            
         t1.start()
         t2.start()
         t3.start()
@@ -287,24 +293,31 @@ if __name__ == '__main__':
 
         print("run")
         # run
-        t1 = threading.Thread(target=master_run,
-                                args=(ssh_master, program_name, b_i, output_directory, 4+len(ssh_others), master_nic_name))
-        t2 = threading.Thread(target=requester_run,
-                                args=(ssh_requester, program_name, b_i, output_directory, 4+len(ssh_others), requester_nic_name))
-        t3 = threading.Thread(target=home_run,
-                                args=(ssh_home, program_name, b_i, output_directory, 4+len(ssh_others), home_nic_name))
-        t4 = threading.Thread(target=cache_run,
-                                args=(ssh_cache, program_name, b_i, output_directory, 4+len(ssh_others), cache_nic_name))
-        tother_list = [threading.Thread(target=other_run,
-                                args=(ssh_others[i], program_name, b_i, output_directory, 4+len(ssh_others), other_nic_name[i]))  for i in range(len(ssh_others))]            
+        t1 = threading.Thread(target=master_run, args=(ssh_master, program_name, b_i, output_directory, 4+len(ssh_others), master_nic_name))
+        t2 = threading.Thread(target=requester_run, args=(ssh_requester, program_name, b_i, output_directory, 4+len(ssh_others), requester_nic_name))
+        t3 = threading.Thread(target=home_run, args=(ssh_home, program_name, b_i, output_directory, 4+len(ssh_others), home_nic_name))
+        t4 = threading.Thread(target=cache_run, args=(ssh_cache, program_name, b_i, output_directory, 4+len(ssh_others), cache_nic_name))
+        tother_list = [threading.Thread(target=other_run, args=(ssh_others[i], program_name, b_i, output_directory, 4+len(ssh_others), other_nic_name[i]))  for i in range(len(ssh_others))]            
         t1.start()
         time.sleep(5)
+        # wait_for_space()
 
         t2.start()
+        time.sleep(5)
+        # wait_for_space()
+
         t3.start()
+        time.sleep(5)
+        # wait_for_space()
+
         t4.start()
+        time.sleep(5)
+        # wait_for_space()
+
         for i in range(len(ssh_others)):
             tother_list[i].start()
+            time.sleep(5)
+            # wait_for_space()
         t1.join()
         t2.join()
         t3.join()

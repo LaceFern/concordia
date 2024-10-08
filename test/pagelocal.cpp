@@ -200,8 +200,8 @@ void pagerank_gather() {
       continue;
     }
     if (UUU > BBBBBBBBB)
-      lnodev[!lnodevn].push_back(i);
-    add[i] = (-lnode[i].oldrank + lnode[i].rank) / outnum[lnode[i].id];
+      lnodev[!lnodevn].push_back(i); //清理inactive的点
+    add[i] = (-lnode[i].oldrank + lnode[i].rank) / outnum[lnode[i].id]; //记录一个local node可能造成的rank变化
   }
   if (UUU > BBBBBBBBB)
     lnodevn = !lnodevn;
@@ -212,8 +212,8 @@ void pagerank_gather() {
     if (!edge[i].active)
       continue;
     if (UUU > BBBBBBBBB)
-      edgev[!edgevn].push_back(i);
-    lnode[storeid[edge[i].to]].add += add[storeid[edge[i].from]];
+      edgev[!edgevn].push_back(i); //清理inactive的边
+    lnode[storeid[edge[i].to]].add += add[storeid[edge[i].from]]; //将local node造成的rank变化作用到点划分后区域中相关的点（通过边）
   }
 
   if (UUU > BBBBBBBBB)
@@ -232,7 +232,7 @@ void pagerank_gather() {
     if (UUU > BBBBBBBBB)
       lnodeon[!lnodeonv].push_back(lnodeon[lnodeonv][i]);
     ull nowi = storeid[lnodeon[lnodeonv][i]];
-    tmpull[count] = lnodeon[lnodeonv][i];
+    tmpull[count] = lnodeon[lnodeonv][i]; //tmpull: DSM buffer，存local node 的 global id
     count++;
 
     info_num[lnode[nowi].mainID]++;
@@ -242,12 +242,12 @@ void pagerank_gather() {
     lnodeonv = !lnodeonv;
 
   addr.addr = (24 * nodeNR);
-  AWMW(addr, count * 8, (uint8_t *)tmpull);
+  AWMW(addr, count * 8, (uint8_t *)tmpull);  //把tmpull存入本设备在gmem中的对应空间
   ull tmp = 0;
   for (int i = 0; i < nodeNR; i++) {
 
     addr.addr = (i)*24;
-    write64(addr, count);
+    write64(addr, count); //把tmpull的长度存入本设备在gmem中的对应空间（用于告诉别人本设备上的local node的数量）
 
     addr.addr += 8;
     write64(addr, tmp);
@@ -261,8 +261,8 @@ void pagerank_gather() {
     if (!lnode[storeid[lnodeon[lnodeonv][i]]].active)
       continue;
     ull nowi = storeid[lnodeon[lnodeonv][i]];
-    tmpdouble[iii] = lnode[nowi].add;
-    tmpbool[iii] = 1;
+    tmpdouble[iii] = lnode[nowi].add;  //tmpdouble：DSM buffer，存local node的更新后的rank值
+    tmpbool[iii] = 1;  //tmpbool：DSM buffer，表示active可能
     iii++;
   }
 
@@ -284,18 +284,18 @@ void pagerank_apply() {
 
     addr.nodeID = i;
     addr.addr = 24 * (nodeID);
-    infoall[i] = read64(addr);
+    infoall[i] = read64(addr); //对应count
     addr.addr += 8;
-    infob[i] = read64(addr);
+    infob[i] = read64(addr); //对应tmp
     addr.addr += 8;
-    infonum[i] = read64(addr);
+    infonum[i] = read64(addr); //对应info_num
 
     addr.addr = (24 * nodeNR) + infob[i] * 8;
-    AWMR(addr, infonum[i] * 8, (uint8_t *)gatherid[i]);
+    AWMR(addr, infonum[i] * 8, (uint8_t *)gatherid[i]); //对应tmpull（每个设备被划分到的node的global id）
     addr.addr = (24 * nodeNR) + infob[i] * 8 + infoall[i] * 8;
-    AWMR(addr, infonum[i] * 8, (uint8_t *)gatheradd);
+    AWMR(addr, infonum[i] * 8, (uint8_t *)gatheradd);  //对应tmpdouble（每个设备被划分到的node的仅区域内更新后的权重）
     for (ull j = 0; j < infonum[i]; j++) {
-      gatherid[i][j] = gatherid[i][j] - (nodeID)*defnode_Num;
+      gatherid[i][j] = gatherid[i][j] - (nodeID)*defnode_Num; //把前面收到的node的global id转化成本地id
       node[gatherid[i][j]].rank += gatheradd[j] * 0.85;
     }
   }
@@ -309,7 +309,7 @@ void pagerank_apply() {
     if (UUU > BBBBBBBBB)
       nodev[!nodevn].push_back(i);
     node[i].rank += 0.15;
-    if (fabs(node[i].rank - nodeoldrank[i]) < TOLERANCE) {
+    if (fabs(node[i].rank - nodeoldrank[i]) < TOLERANCE) { // nodeoldrank是用来存本地管理的global node的聚合后rank结果的本地数组
       nodeactive[i] = 0;
       active_N--;
     }
@@ -329,7 +329,7 @@ void pagerank_apply() {
     }
 
     addr.addr = (24ULL * nodeNR) + (infob[i]) * 8ULL + (infoall[i] * 16);
-    AWMW(addr, infonum[i] * 8, (uint8_t *)tmpdouble);
+    AWMW(addr, infonum[i] * 8, (uint8_t *)tmpdouble);  // 把每个设备的local node的更新后的rank写入各设备对应的gmem
     addr.addr = (24ULL * nodeNR) + (infoall[i] * 8ULL * 3) + infob[i];
     AWMW(addr, infonum[i], (uint8_t *)tmpbool);
   }
@@ -354,7 +354,7 @@ void pagerank_scatter() {
     lnode[nowi].rank = tmpdouble[Dsmid];
     Dsmid++;
 
-    if (lnode[nowi].active == 0) {
+    if (lnode[nowi].active == 0) { //某个节点失效后，这个点相连的所有边都会失效
       for (long long j = lnode[nowi].nextf; j != -1; j = edge[j].nextf) {
         edge[j].active = 0;
       }
@@ -418,7 +418,7 @@ void build_graph() {
   }
 
   // init the main node in my core
-  for (ull i = 0; i < mynode_Num; i++) {
+  for (ull i = 0; i < mynode_Num; i++) { // 这是一堆由该设备负责聚合的一部分全局node（区分于local node）
     node[i].id = i + nodeID * defnode_Num;
     nodeactive[i] = 1;
     node[i].rank = 0;
@@ -426,7 +426,8 @@ void build_graph() {
     nodev[0].push_back(i);
   }
 
-  // init the edge
+  // init the edge 
+  // 点划分：https://www.cnblogs.com/orion-orion/p/16340839.html
   for (int i = 0; i < nodeNR; i++) {
     ull J = defedge_Num; // the edgeNum of core i
     if (i == nodeNR - 1)
