@@ -915,6 +915,12 @@ public:
 
     }
 
+    void *rq_dir_f_app  [NR_DIRECTORY][8][MAX_APP_THREAD] = {0};
+    void *rq_dir_f_agent[NR_DIRECTORY][8][NR_CACHE_AGENT] = {0};
+    void *rq_agent_f_app[NR_CACHE_AGENT][8][MAX_APP_THREAD] = {0};
+    void *rq_agent_f_dir[NR_CACHE_AGENT][8][NR_DIRECTORY] = {0};
+    void *rq_app_f_agent[MAX_APP_THREAD][8][NR_CACHE_AGENT] = {0};
+    void *rq_app_f_dir  [MAX_APP_THREAD][8][NR_DIRECTORY] = {0};
 };
 
 extern agent_stats agent_stats_inst;

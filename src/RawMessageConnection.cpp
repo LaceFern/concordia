@@ -38,7 +38,8 @@ void RawMessageConnection::sendRawMessage(RawMessage *m) {
 
   if ((sendCounter & SIGNAL_BATCH) == 0 && sendCounter > 0) {
     ibv_wc wc;
-    pollWithCQ(send_cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(send_cq, 1, &wc, msg);
   }
 
   rdmaRawSend(message, (uint64_t)m - sendPadding,

@@ -74,6 +74,9 @@ class CacheAgent {
 
     void processImmRet(AgentWrID w);
 
+    // send with RC
+    void sendMsgWithRC(RawMessage *m, ibv_qp *qp);
+
 };
 
 #endif /* __CACHEAGENT_H__ */

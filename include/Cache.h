@@ -213,6 +213,9 @@ private:
   const static uint16_t kUnlockBatchAck = 8;
 
   ~Cache();
+
+  // send with RC
+  void sendMsgWithRC(RawMessage *m, ibv_qp *qp);
 };
 
 #endif /* __CACHE_H__ */

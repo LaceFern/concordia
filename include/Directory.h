@@ -109,6 +109,9 @@ private:
   void init_switch();
 
   void test_change_ownership();
+
+  // send with RC
+  void sendMsgWithRC(RawMessage *m, ibv_qp *qp);
 };
 
 #endif /* __DIRECTORY_H__ */

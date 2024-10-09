@@ -1,7 +1,8 @@
 #include "Rdma.h"
 #include "RecvImmBatch.h"
+#include "Common.h"
 
-int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc) {
+int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc, char *m) {
   int count = 0;
 
   do {
@@ -13,6 +14,11 @@ int pollWithCQ(ibv_cq *cq, int pollNumber, struct ibv_wc *wc) {
       auto *p = (RecvImmBatch *)wc->wr_id;
       p->try_recv();
       // rdmaReceive((ibv_qp *)wc->wr_id, 0, 0, 0 );
+    }
+    else if (new_count == 1 && wc->opcode == IBV_WC_RECV){
+      auto *p = (RecvImmBatch *)wc->wr_id;
+      char * tmp_m = p->get_message_and_try_recv();
+      memcpy(m, tmp_m, MESSAGE_SIZE);
     }
 
   } while (count < pollNumber);

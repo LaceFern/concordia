@@ -89,14 +89,14 @@ struct RawMessage {
   uint32_t dirKey;
 
   // LITTLE ENDIAN
-  uint8_t nodeID : 4;
-  uint8_t dirNodeID : 4;
+  uint8_t nodeID : 4; // request node id
+  uint8_t dirNodeID : 4; // dir node id; PS. dir thread id is randomly assigned
 
-  uint8_t appID;
+  uint8_t appID; //app thread id
 
   union {
-    uint16_t mybitmap;
-    uint16_t agentID;
+    uint16_t mybitmap; //cache agent node id
+    uint16_t agentID; //cache agent node id; PS. dir thread id is randomly assigned
   };
 
   uint8_t state;

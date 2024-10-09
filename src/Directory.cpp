@@ -93,8 +93,11 @@ void Directory::init_switch() {
     assert(push_to_switch(i, info));
 
     struct ibv_wc wc;
-    pollWithCQ(dCon->cq, 1, &wc);
-    auto m = (RawMessage *)dCon->message->getMessage();
+    
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(dCon->cq, 1, &wc, msg);
+    // auto m = (RawMessage *)dCon->message->getMessage();
+    auto m = (RawMessage *)msg;
     processOwnershipChange(m);
   }
 
@@ -139,7 +142,8 @@ void Directory::queueThread() {
 
   while(true){
     struct ibv_wc wc;
-    pollWithCQ(dCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(dCon->cq, 1, &wc, msg);
 
     // printf("checkpoint 0 on dir queue %d: receive a packet!\n", dirID);
 
@@ -149,6 +153,9 @@ void Directory::queueThread() {
     struct queue_entry entry;
     entry.wc = wc;
     entry.starting_point = now_time_tsc;
+    for(int i = 0; i < MESSAGE_SIZE; i++){
+      entry.msg[i] = msg[i];
+    }
     (agent_stats_inst.queues[queueID])->push(entry);
     // while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
     // std::atomic_thread_fence(std::memory_order_release);
@@ -280,13 +287,15 @@ void Directory::dirThread() {
 
   while (true) {
     struct ibv_wc wc;
-    pollWithCQ(dCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(dCon->cq, 1, &wc, msg);
 
     switch (int(wc.opcode)) {
     case IBV_WC_RECV: // control message
     {
       dirRecvControlCounter++;
-      auto m = (RawMessage *)dCon->message->getMessage();
+      // auto m = (RawMessage *)dCon->message->getMessage();
+      auto m = (RawMessage *)msg;
 
       if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
         // //debug
@@ -778,7 +787,8 @@ void Directory::sendAck2AppByPassSwitch(const RawMessage *from_message,
 
   printRawMessage(m, "dir send");
 
-  dCon->sendMessage(m);
+  // dCon->sendMessage(m);
+  dCon->sendMsgWithRC(m, dCon->data2app[m->appID][m->nodeID]);
 }
 
 void Directory::sendMessage2Agent(const RawMessage *m, uint8_t agentID,
@@ -796,7 +806,8 @@ void Directory::sendMessage2Agent(const RawMessage *m, uint8_t agentID,
 
   printRawMessage(control, "dir send");
 
-  dCon->sendMessage(control);
+  // dCon->sendMessage(control);
+  dCon->sendMsgWithRC(control, dCon->data2cache[control->dirKey % NR_CACHE_AGENT][control->agentID]);
 }
 
 void Directory::addDir2Switch(uint32_t dirKey, const BlockInfo *block) {
@@ -854,9 +865,11 @@ void Directory::test_change_ownership() {
     addDir2Switch(0x123 + i, &block);
 
     struct ibv_wc wc;
-    pollWithCQ(dCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(dCon->cq, 1, &wc, msg);
 
-    auto m = (RawMessage *)dCon->message->getMessage();
+    // auto m = (RawMessage *)dCon->message->getMessage();
+    auto m = (RawMessage *)msg;
     printRawMessage(m, "dir recv");
   }
 
@@ -872,9 +885,11 @@ void Directory::test_change_ownership() {
     delDir2Switch(0x123 + i);
 
     struct ibv_wc wc;
-    pollWithCQ(dCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(dCon->cq, 1, &wc, msg);
 
-    auto m = (RawMessage *)dCon->message->getMessage();
+    // auto m = (RawMessage *)dCon->message->getMessage();
+    auto m = (RawMessage *)msg;
 
     printRawMessage(m, "dir recv");
   }
@@ -1054,4 +1069,8 @@ void Directory::processAgentAckBaseline(RawMessage *m) {
   }
 
 #endif
+}
+
+void Directory::sendMsgWithRC(RawMessage *m, ibv_qp *qp){
+  rdmaSend(qp, (uint64_t)m, sizeof(RawMessage), dCon->dsmLKey, -1);
 }

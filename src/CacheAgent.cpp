@@ -3,7 +3,7 @@
 #include "Cache.h"
 #include "Common.h"
 #include "Connection.h"
-
+#include "RecvImmBatch.h"
 #include "agent_stat.h"
 
 uint64_t agentSendDataCounter = 0;
@@ -21,6 +21,26 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
                        uint16_t nodeID)
     : cCon(cCon), remoteInfo(remoteInfo), cache(cache), machineNR(machineNR),
       agentID(agentID), nodeID(nodeID), agent(nullptr) {
+
+  for (int i = 0; i < NR_DIRECTORY; ++i) {
+    for (size_t k = 0; k < machineNR; ++k) {
+      void *rq_buffer = NULL; // TODO: partition buffer in agent_stat and assigned here!
+      new RecvImmBatch(cCon->data[i][k], POST_RECV_PER_RC_QP, rq_buffer, cCon->cacheLKey);
+      // for (int n = 0; n < POST_RECV_PER_RC_QP; ++n) {
+      //   rdmaReceive(dCon->data2cache[i][k], 0, 0, 0);
+      // }
+    }
+  }
+
+  for (int i = 0; i < MAX_APP_THREAD; ++i) {
+    for (size_t k = 0; k < machineNR; ++k) {
+      void *rq_buffer = NULL; // TODO: partition buffer in agent_stat and assigned here!
+      new RecvImmBatch(cCon->toApp[i][k], POST_RECV_PER_RC_QP, rq_buffer, cCon->cacheLKey);
+      // for (int n = 0; n < POST_RECV_PER_RC_QP; ++n) {
+      //   rdmaReceive(dCon->data2app[i][k], 0, 0, 0);
+      // }
+    }
+  }
 
   mybitmap = 1 << nodeID;
 
@@ -45,12 +65,16 @@ void CacheAgent::queueThread() {
 
   while(true){
     struct ibv_wc wc;
-    pollWithCQ(cCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(cCon->cq, 1, &wc, msg);
     uint64_t now_time_tsc = agent_stats_inst.rdtsc();
 
     struct queue_entry entry;
     entry.wc = wc;
     entry.starting_point = now_time_tsc;
+    for(int i = 0; i < MESSAGE_SIZE; i++){
+      entry.msg[i] = msg[i];
+    }
     (agent_stats_inst.queues[queueID])->push(entry);
 
     // while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
@@ -79,7 +103,8 @@ void CacheAgent::processThread() {
     switch (int(wc.opcode)) {
     case IBV_WC_RECV: // control message
 
-      m = (RawMessage *)cCon->message->getMessage();
+      // m = (RawMessage *)cCon->message->getMessage();
+      m = (RawMessage *)entry.msg;
 
       if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
         res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
@@ -130,7 +155,8 @@ void CacheAgent::agentThread() {
     struct ibv_wc wc;
     RawMessage *m;
 
-    pollWithCQ(cCon->cq, 1, &wc);
+    char msg[MESSAGE_SIZE] = {0};
+    pollWithCQ(cCon->cq, 1, &wc, msg);
     // agent_stats_inst.update_cache_recv_count(sysID);
 
     // printf("checkpoing 1 in cache agent %d\n", agentID);
@@ -138,7 +164,8 @@ void CacheAgent::agentThread() {
     // Debug::notifyError("HHH");
     switch (int(wc.opcode)) {
     case IBV_WC_RECV: // control message
-      m = (RawMessage *)cCon->message->getMessage();
+      // m = (RawMessage *)cCon->message->getMessage();
+      m = (RawMessage *)msg;
 
       if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
         agent_stats_inst.update_cache_recv_count(sysID);
@@ -420,7 +447,8 @@ void CacheAgent::sendAck2App(RawMessage *m, RawMessageType type) {
 
   printRawMessage(ack, "agent send");
 
-  cCon->sendMessage(ack);
+  // cCon->sendMessage(ack);
+  cCon->sendMsgWithRC(ack, cCon->toApp[ack->appID][ack->nodeID]);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -441,4 +469,8 @@ void CacheAgent::processImmRet(AgentWrID w) {
   } else {
     assert(w.type == AgentPendingReason::NOP);
   }
+}
+
+void CacheAgent::sendMsgWithRC(RawMessage *m, ibv_qp *qp){
+  rdmaSend(qp, (uint64_t)m, sizeof(RawMessage), cCon->cacheLKey, -1);
 }

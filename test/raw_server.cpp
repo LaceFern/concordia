@@ -22,7 +22,8 @@ int main() {
 
     while (true) {
         struct ibv_wc wc;
-        pollWithCQ(cq, 1, &wc);
+        char msg[MESSAGE_SIZE] = {0};
+        pollWithCQ(cq, 1, &wc, msg);
 
         assert(wc.opcode == IBV_WC_RECV);
 

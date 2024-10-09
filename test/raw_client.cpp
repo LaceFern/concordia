@@ -16,11 +16,13 @@ int main() {
 
     while (true) {
         struct ibv_wc wc;
-        pollWithCQ(cq, 1, &wc);
+        char msg[MESSAGE_SIZE] = {0};
+        pollWithCQ(cq, 1, &wc, msg);
 
         assert(wc.opcode == IBV_WC_RECV);
 
-        RawMessage *m = (RawMessage *)message->getMessage();
+        // RawMessage *m = (RawMessage *)message->getMessage();
+        RawMessage *m = (RawMessage *)msg;
 
         std::cout << "appID: " << (int)m->appID << std::endl;
         std::cout << "bitmap: " << (int)m->bitmap << std::endl;
