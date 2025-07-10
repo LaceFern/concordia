@@ -26,6 +26,9 @@ concordia仓库原名ccDSM！
 ccDSM/host：ip、mac、p4 switch对应的port
 
 # 编译运行交换机代码
+
+选择正确的SDE版本: sudo update-alternatives --config bf-sde
+
 进入./p4src文件夹
 
 在当前用户根目录下（e.g., /home/zxy）运行 ln -s /root/Software/bf-sde-8.9.1 bf-sde-8.9.1
