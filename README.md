@@ -44,7 +44,7 @@ ccDSM/host：ip、mac、p4 switch对应的port
 ![no module error](images/generate_tofino_pd.png)
 
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
-![shared file error](images/generate_tofino_pd.png)
+![shared file error](images/bf_switchd.png)
 
 
 # 编译服务器代码
