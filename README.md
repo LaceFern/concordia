@@ -46,7 +46,7 @@ ccDSM/host：ip、mac、p4 switch对应的port
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
 ![shared file error](images/bf_switch.png)
 
-3. 若出现下图bf_switchd报错，不用在意，不影响实验
+3. 若在运行sudo -E ./auto_run.sh时出现下图write port报错，不用在意，不影响实验
 ![write port error](images/write_port_error.jpg)
 
 # 编译服务器代码
