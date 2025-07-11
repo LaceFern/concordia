@@ -35,7 +35,7 @@ ccDSM/host：ip、mac、p4 switch对应的port
 
 编译: ./build.sh 时间比较长
 
-运行: sudo -E ./run.sh
+运行: sudo -E ./run.sh（弃用，直接用下面那行就行）
 
 运行并enable port： sudo -E ./auto_run.sh
 
