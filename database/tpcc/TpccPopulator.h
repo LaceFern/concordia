@@ -84,7 +84,6 @@ class TpccPopulator : public BenchmarkPopulator {
         TpccRandomGenerator::SelectUniqueIds(
             scale_params_->num_customers_per_district_ / 10, 1,
             scale_params_->num_customers_per_district_, selected_rows);
-
         for (int c_id = 1; c_id <= scale_params_->num_customers_per_district_;
             ++c_id) {
           bool bad_credit = (selected_rows.find(c_id) != selected_rows.end());
@@ -359,7 +358,7 @@ class TpccPopulator : public BenchmarkPopulator {
     memcpy(record->h_data_, data.c_str(), data.size());
   }
 
-  DistrictNewOrderRecord* GenerateDistrictNewOrderRecord(
+  void GenerateDistrictNewOrderRecord(
       const int &w_id, const int &d_id, const int &o_id,
       DistrictNewOrderRecord* record) const {
     record->w_id_ = w_id;

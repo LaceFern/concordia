@@ -37,12 +37,12 @@ int main(int argc, char* argv[]) {
   default_gallocator->registerThread();
 
 
-  // std::cout << "1" << std::endl;
+  std::cout << "1" << std::endl;
   synchronizer.Fence();
-  // std::cout << "2" << std::endl;
+  std::cout << "2" << std::endl;
   // initialize benchmark data
   GAddr storage_addr = initiator.InitStorage();
-  //  std::cout << "3" << std::endl;
+  std::cout << "3" << std::endl;
   synchronizer.MasterBroadcast<GAddr>(&storage_addr); 
   std::cout << "storage_addr=" << storage_addr << std::endl;
   StorageManager storage_manager;
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
   // default_gallocator->disable_switch_cc();
   latency_lock.store(0);
-  latency.clear();
+  // latency.clear();
 
 
   synchronizer.Fence();
@@ -92,10 +92,11 @@ int main(int argc, char* argv[]) {
     ExchPerfStatistics(&config, &synchronizer, &executor.GetPerfStatistics());
   }
 
-  std::sort(latency.begin(), latency.end());
-  std::cout << "latency " << latency[latency.size() / 2] <<
-  " " << latency[latency.size() * 90 / 100] << " " << latency[latency.size() * 99 / 100] << std::endl;
-
+  if (latency.size() > 0)
+  {
+      std::sort(latency.begin(), latency.end());
+      std::cout << "latency " << latency[latency.size() / 2] << " " << latency[latency.size() * 90 / 100] << " " << latency[latency.size() * 99 / 100] << std::endl;
+  }
   std::cout << "prepare to exit..." << std::endl;
   synchronizer.Fence();
   std::cout << "over.." << std::endl;

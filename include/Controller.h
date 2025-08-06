@@ -8,9 +8,10 @@
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/protocol/TMultiplexedProtocol.h>
 
-#include "ccDSM.h"
+#include "DSM.h"
 #include "res_types.h"
 #include "p4_pd_rpc_types.h"
+#include "ccDSM.h"
 
 using namespace apache::thrift;
 using namespace apache::thrift::protocol;
