@@ -143,14 +143,14 @@ void init_trace(int nodeID, int threadID) {
 
   /***********************************/
   /******** MY CODE STARTS ********/
-  for (int i = 0; i < breakdown_times; ++i) {
-    next = traces_breakdown[i];
-    thread_access_[OP_NUMS + i] = next;
+//   for (int i = 0; i < breakdown_times; ++i) {
+//     next = traces_breakdown[i];
+//     thread_access_[OP_NUMS + i] = next;
 
-    if (threadID == 0) {
-      agent_stats_inst.push_valid_gaddr(next.addr);
-    }
-  }
+//     if (threadID == 0) {
+//       agent_stats_inst.push_valid_gaddr(next.addr);
+//     }
+//   }
 
 
   // if (threadID == 0) {
@@ -238,37 +238,37 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
         // TODO: thread_access_[op] --> to_access_breakdown
         switch (request_rw) {
         case 0: {
-          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->Try_RLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
+        //   // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->Try_RLock(to_access_breakdown, OBJ_SIZE);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
 
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->read(to_access_breakdown, OBJ_SIZE, to);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_READ_RETURN);
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->read(to_access_breakdown, OBJ_SIZE, to);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_READ_RETURN);
 
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->UnLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
-          break;
-        }
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->UnLock(to_access_breakdown, OBJ_SIZE);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
+        //   break;
+        // }
 
-        case 1: {
-          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->Try_WLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
-          // printf("checkpoint 1.2 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+        // case 1: {
+        //   // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->Try_WLock(to_access_breakdown, OBJ_SIZE);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
+        //   // printf("checkpoint 1.2 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
 
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->write(to_access_breakdown, OBJ_SIZE, from);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_WRITE_RETURN);
-          // printf("checkpoint 1.3 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->write(to_access_breakdown, OBJ_SIZE, from);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_WRITE_RETURN);
+        //   // printf("checkpoint 1.3 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
 
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->UnLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
-          // printf("checkpoint 1.4 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
+        //   agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
+        //   dsm->UnLock(to_access_breakdown, OBJ_SIZE);
+        //   agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
+        //   // printf("checkpoint 1.4 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
 
           break;
         }

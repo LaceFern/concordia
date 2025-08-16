@@ -20,8 +20,8 @@
 // #define BASELINE
 
 #define UNLOCK_SYNC
-#define R_W_CC
-// #define READ_MISS_DIRTY_TO_DIRTY
+// #define R_W_CC
+#define READ_MISS_DIRTY_TO_DIRTY
 
 // #define VERBOSE
 #define DEADLOCK_DETECTION
@@ -40,11 +40,11 @@
 typedef uint32_t Tag;
 typedef uint64_t DirKey;
 
-#define DSM_CACHE_LINE_WIDTH (12) // 4K
+#define DSM_CACHE_LINE_WIDTH (10) // 4K
 // #define DSM_CACHE_LINE_WIDTH (9) // 512
 #define DSM_CACHE_LINE_SIZE (1u << DSM_CACHE_LINE_WIDTH)
 
-#define DSM_CACHE_INDEX_WIDTH (16)
+#define DSM_CACHE_INDEX_WIDTH (18)
 #define DSM_CACHE_INDEX_SIZE (1u << DSM_CACHE_INDEX_WIDTH)
 
 #define CACHE_WAYS (8)
@@ -56,27 +56,27 @@ typedef uint64_t DirKey;
 
 #define MESSAGE_SIZE 96 // byte
 
-#define POST_RECV_PER_RC_QP 128
+#define POST_RECV_PER_RC_QP 1024
 
-#define RAW_RECV_CQ_COUNT 128
+#define RAW_RECV_CQ_COUNT 32000
 
 // { app thread
-#define MAX_APP_THREAD 48
+#define MAX_APP_THREAD 9
 
-#define APP_MESSAGE_NR 96
+#define APP_MESSAGE_NR 1024
 
-#define APP_POST_IMM_RECV 16
+#define APP_POST_IMM_RECV 1024
 // }
 
 // { cache agent thread
 #define NR_CACHE_AGENT 1
 
-#define AGENT_MESSAGE_NR 96
+#define AGENT_MESSAGE_NR 1024
 
 // { dir thread
 #define NR_DIRECTORY 1
 
-#define DIR_MESSAGE_NR 128
+#define DIR_MESSAGE_NR 1024
 // }
 
 void bindCore(uint16_t core);

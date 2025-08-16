@@ -16,6 +16,7 @@
 #include <mutex>
 #include <iostream>
 #include <string>
+#include <iomanip>
 
 #include "histogram.h"
 #include "atomic_queue/atomic_queue.h"
@@ -33,7 +34,7 @@
 
 namespace fs = boost::filesystem;
 
-using GAddr = uint64_t;
+// using GAddr = uint64_t;
 
 // class queue_entry {
 // public:
@@ -109,6 +110,18 @@ enum class APP_THREAD_OP {
     _count,
 };
 
+enum class MULTI_APP_THREAD_OP {
+    NONE,
+    READ,
+    WRITE,
+    RLOCK,
+    RUNLOCK,
+    WLOCK,
+    WUNLOCK,
+    MALLOC,
+    _count,
+};
+
 enum class SYS_THREAD_OP {
     NONE,
     _count,
@@ -131,7 +144,7 @@ enum class MULTI_POLL_THREAD_OP {
 };
 
 
-extern __thread std::thread::id now_thread_id;
+extern thread_local std::thread::id now_thread_id;
 
 class agent_stats {
 private:
@@ -162,7 +175,7 @@ private:
     std::unordered_map<MULTI_POLL_THREAD_OP, Histogram *> multi_poll_thread_op_stats[MAX_SYS_THREAD];
 
 
-    std::unordered_set <GAddr> valid_gaddrs;
+    // std::unordered_set <GAddr> valid_gaddrs;
 
     std::atomic<int> start;
 
@@ -183,10 +196,16 @@ private:
     // int request_send_count[MAX_GLB_THREAD] = {0};
     // int cache_send_count[MAX_GLB_THREAD] = {0};
 
+    std::mutex access_size_mtx_;
+    std::unordered_map<size_t, uint64_t> write_size_stats_;
+    std::unordered_map<size_t, uint64_t> read_size_stats_;
+
 public:
 
     int control_packet_send_count[MAX_APP_THREAD + MAX_SYS_THREAD] = {0};
     int data_packet_send_count[MAX_APP_THREAD + MAX_SYS_THREAD] = {0};
+    std::atomic<int> cachehit{0};
+    std::unordered_map<MULTI_APP_THREAD_OP, Histogram *> multi_app_thread_op_stats[MAX_APP_THREAD];
     
 
     uint64_t rdtsc() {
@@ -277,6 +296,7 @@ public:
     uint64_t lcores_num_per_numa = 12;
     explicit agent_stats() {
         // TODO
+        start_collection();
         for(int j = 0; j < static_cast<int>(MEMACCESS_TYPE::_count); j++){
             memaccess_type_stats[(MEMACCESS_TYPE) j] = new Histogram(1, 10000000, 3, 10);
         }
@@ -284,6 +304,12 @@ public:
         app_thread_stats = new Histogram(1, 10000000, 3, 10);
         for(int j = 0; j < static_cast<int>(APP_THREAD_OP::_count); j++){
             app_thread_op_stats[(APP_THREAD_OP) j] = new Histogram(1, 10000000, 3, 10);
+        }
+
+        for(int i = 0; i < MAX_APP_THREAD; i++){
+            for(int j = 0; j < static_cast<int>(MULTI_APP_THREAD_OP::_count); j++){
+                multi_app_thread_op_stats[i][(MULTI_APP_THREAD_OP) j] = new Histogram(1, 10000000, 3, 10);
+            }
         }
 
         sys_thread_stats = new Histogram(1, 10000000, 3, 10);
@@ -309,6 +335,20 @@ public:
 
     ~agent_stats() {
         // TODO
+        // print_access_size_stats();
+        // print_all_false_count(stdout,48);
+        // std::cout << "cache hit" << cachehit.load() << std::endl;
+        // print_app_thread_stat();
+        print_multi_app_thread_op_stats();
+    }
+
+    void print_multi_app_thread_op_stats() {
+        for(int i = 0; i < MAX_APP_THREAD; i++){
+            std::cout << "app thread " << i << " multi app thread op stats: " << std::endl;
+            for(int j = 0; j < static_cast<int>(MULTI_APP_THREAD_OP::_count); j++){
+                multi_app_thread_op_stats[i][(MULTI_APP_THREAD_OP) j]->print(stdout, 5);
+            }
+        }
     }
 
     void print_app_thread_stat() {
@@ -346,6 +386,34 @@ public:
         app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN]->print(stdout, 5);
         // std::cout << "\nMEMSET: " << std::endl;
         // app_thread_op_stats[APP_THREAD_OP::MEMSET]->print(stdout, 5);
+        
+        int control_packet_send_count_total = 0;
+        int data_packet_send_count_total = 0;
+        for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+            control_packet_send_count_total += control_packet_send_count[i];
+            data_packet_send_count_total += data_packet_send_count[i];
+        }
+        fprintf(stdout, "packet count:\t");
+        for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+            if(i < nr_app){
+                fprintf(stdout, "app[%d]=(%d, %d)\t", i, control_packet_send_count[i], data_packet_send_count[i]);
+            }
+            else if(i >= MAX_APP_THREAD && i < MAX_APP_THREAD + sys_thread_num){
+                fprintf(stdout, "sys[%d]=(%d, %d)\t", i - MAX_APP_THREAD, control_packet_send_count[i], data_packet_send_count[i]);
+            }
+        }
+        fprintf(stdout, "total=(%d, %d)\n", control_packet_send_count_total, data_packet_send_count_total);
+        
+        fprintf(stdout, "net throughput (MBps):\t");
+        for(int i = 0; i < MAX_APP_THREAD + MAX_SYS_THREAD; i++){
+            if(i < nr_app){
+                fprintf(stdout, "app[%d]=(%.2lf, %.2lf)\t", i, 1.0 * control_packet_send_count[i] * 74 / microseconds, 1.0 * data_packet_send_count[i] * DSM_CACHE_LINE_SIZE / microseconds);
+            }
+            else if(i >= MAX_APP_THREAD && i < MAX_APP_THREAD + sys_thread_num){
+                fprintf(stdout, "sys[%d]=(%.2lf, %.2lf)\t", i - MAX_APP_THREAD, 1.0 * control_packet_send_count[i] * 74 / microseconds, 1.0 * data_packet_send_count[i] * DSM_CACHE_LINE_SIZE / microseconds);
+            }
+        }
+        fprintf(stdout, "total=(%.2lf, %.2lf)\n", 1.0 * control_packet_send_count_total * 74 / microseconds, 1.0 * data_packet_send_count_total * DSM_CACHE_LINE_SIZE / microseconds);
     }
 
     void print_multi_sys_thread_stat() {
@@ -683,33 +751,34 @@ public:
         }
     }
 
-    bool is_valid_gaddr_without_start(GAddr gaddr) {
-        return valid_gaddrs.count(gaddr);
-    }
+    // bool is_valid_gaddr_without_start(GAddr gaddr) {
+    //     return valid_gaddrs.count(gaddr);
+    // }
 
-    bool is_valid_gaddr(GAddr gaddr) {
-        if(!start){
-            return false;
-        }
-        else{
-            return valid_gaddrs.count(gaddr);
-        }
-    }
+    // bool is_valid_gaddr(GAddr gaddr) {
+    //     // if(!start){
+    //     //     return false;
+    //     // }
+    //     // else{
+    //     //     return valid_gaddrs.count(gaddr);
+    //     // }
+    //     return false;
+    // }
 
-    void push_valid_gaddr(GAddr gaddr) {
-        valid_gaddrs.insert(gaddr);
-    }
+    // void push_valid_gaddr(GAddr gaddr) {
+    //     valid_gaddrs.insert(gaddr);
+    // }
 
-    void print_valid_gaddr() {
-        printf("valid Gaddr:");
-        for (const auto& gaddr : valid_gaddrs) {
-            std::cout << gaddr << std::endl;
-        }
-    }
+    // void print_valid_gaddr() {
+    //     printf("valid Gaddr:");
+    //     for (const auto& gaddr : valid_gaddrs) {
+    //         std::cout << gaddr << std::endl;
+    //     }
+    // }
 
-    void pop_valid_gaddr(GAddr gaddr) {
-        valid_gaddrs.erase(gaddr);
-    }
+    // void pop_valid_gaddr(GAddr gaddr) {
+    //     valid_gaddrs.erase(gaddr);
+    // }
 
     void start_collection() {
         start = 1;
@@ -741,40 +810,53 @@ public:
         }
     }
 
-    inline void start_record_app_thread(GAddr gaddr) {
-        if (is_valid_gaddr(gaddr) && start) {
-            std::lock_guard<std::mutex> lock(app_mtx);
-            app_thread_counter = rdtsc();
-        }
+    // inline void start_record_app_thread(GAddr gaddr) {
+        // if (is_valid_gaddr(gaddr) && start) {
+        //     std::lock_guard<std::mutex> lock(app_mtx);
+        //     app_thread_counter = rdtsc();
+        // }
+    // }
+
+    inline void start_record_app_thread() {
+        app_thread_counter = rdtsc();
     }
-    inline void stop_record_app_thread_with_op(GAddr gaddr, APP_THREAD_OP op = APP_THREAD_OP::NONE) {
-        if (is_valid_gaddr(gaddr) && start) {
-            std::lock_guard<std::mutex> lock(app_mtx);
-            // printf("stop_record_app_thread_with_op: gaddr = %ld, op = %d\n", gaddr, static_cast<int>(op));
-            uint64_t ns = rdtscp() - app_thread_counter;
-            if (op == APP_THREAD_OP::NONE) {
-                app_thread_stats->record(ns);
-            } else {
-                app_thread_op_stats[op]->record(ns);
-            }
+
+    // inline void stop_record_app_thread_with_op(GAddr gaddr, APP_THREAD_OP op = APP_THREAD_OP::NONE) {
+    //     if (is_valid_gaddr(gaddr) && start) {
+    //         std::lock_guard<std::mutex> lock(app_mtx);
+    //         // printf("stop_record_app_thread_with_op: gaddr = %ld, op = %d\n", gaddr, static_cast<int>(op));
+    //         uint64_t ns = rdtscp() - app_thread_counter;
+    //         if (op == APP_THREAD_OP::NONE) {
+    //             app_thread_stats->record(ns);
+    //         } else {
+    //             app_thread_op_stats[op]->record(ns);
+    //         }
+    //     }
+    // }
+    inline void stop_record_app_thread_with_op(APP_THREAD_OP op = APP_THREAD_OP::NONE){
+        uint64_t ns = rdtscp() - app_thread_counter;
+        if (op == APP_THREAD_OP::NONE) {
+            app_thread_stats->record(ns);
+        } else {
+            app_thread_op_stats[op]->record(ns);
         }
     }
 
-    inline void start_record_sys_thread(GAddr gaddr) {
-        if (is_valid_gaddr(gaddr) && start) {
-            sys_thread_counter = rdtsc();
-        }
-    }
-    inline void stop_record_sys_thread_with_op(GAddr gaddr, SYS_THREAD_OP op = SYS_THREAD_OP::NONE) {
-        if (is_valid_gaddr(gaddr) && start) {
-            uint64_t ns = rdtscp() - sys_thread_counter;
-            if (op == SYS_THREAD_OP::NONE) {
-                sys_thread_stats->record_atomic(ns);
-            } else {
-                sys_thread_op_stats[op]->record_atomic(ns);
-            }
-        }
-    }
+    // inline void start_record_sys_thread(GAddr gaddr) {
+    //     if (is_valid_gaddr(gaddr) && start) {
+    //         sys_thread_counter = rdtsc();
+    //     }
+    // }
+    // inline void stop_record_sys_thread_with_op(GAddr gaddr, SYS_THREAD_OP op = SYS_THREAD_OP::NONE) {
+    //     if (is_valid_gaddr(gaddr) && start) {
+    //         uint64_t ns = rdtscp() - sys_thread_counter;
+    //         if (op == SYS_THREAD_OP::NONE) {
+    //             sys_thread_stats->record_atomic(ns);
+    //         } else {
+    //             sys_thread_op_stats[op]->record_atomic(ns);
+    //         }
+    //     }
+    // }
 
     inline void start_record_multi_sys_thread(uint64_t thread_id) {
         std::lock_guard<std::mutex> lock(sys_mtx[thread_id]);
@@ -805,6 +887,13 @@ public:
         } else {
             multi_poll_thread_op_stats[thread_id][op]->record_atomic(ns);
         }
+    }
+
+    void clear_acecss_size_stats() {
+        std::lock_guard<std::mutex> lock(access_size_mtx_);
+        cachehit.store(0);
+        read_size_stats_.clear();
+        write_size_stats_.clear();
     }
 
     void waitForSpace() {
@@ -915,6 +1004,117 @@ public:
 
     }
 
+    inline void RecordWrite(size_t size) {
+        std::lock_guard<std::mutex> lock(access_size_mtx_);
+        write_size_stats_[size]++;
+    }
+
+    /**
+     * @brief 记录一次读操作的大小。线程安全。
+     * @param size 读取的数据字节数。
+     */
+    inline void RecordRead(size_t size) {
+        std::lock_guard<std::mutex> lock(access_size_mtx_);
+        read_size_stats_[size]++;
+    }
+    
+    /**
+     * @brief 打印读写操作大小的统计报告。
+     */
+    void print_access_size_stats() {
+        std::lock_guard<std::mutex> lock(access_size_mtx_);
+
+        std::cout << "\n" << std::string(80, '=') << "\n";
+        std::cout << std::setw(55) << "Memory Access Size Profile Report" << "\n";
+        std::cout << std::string(80, '=') << "\n";
+
+        // 内部辅助函数，用于打印报告的单个部分
+        auto report_section = [](const std::string& title, const std::unordered_map<size_t, uint64_t>& stats) {
+            uint64_t total_ops = 0;
+            uint64_t total_bytes = 0;
+            
+            // 排序以便于查看
+            std::vector<std::pair<size_t, uint64_t>> sorted_stats(stats.begin(), stats.end());
+            std::sort(sorted_stats.begin(), sorted_stats.end());
+
+            // std::cout << "\n--- " << title << " ---\n";
+            // if (sorted_stats.empty()) {
+            //     std::cout << "No operations recorded.\n";
+            //     return;
+            // }
+
+            // std::cout << std::left << std::setw(20) << "Size (bytes)"
+            //           << std::setw(25) << "Count"
+            //           << std::setw(25) << "Percentage" << "\n";
+            // std::cout << std::string(70, '-') << "\n";
+
+            for (const auto& pair : sorted_stats) {
+                total_ops += pair.second;
+            }
+
+            if (total_ops == 0) {
+                 std::cout << "No operations recorded.\n";
+                 return;
+            }
+
+            // for (const auto& pair : sorted_stats) {
+            //     size_t size = pair.first;
+            //     uint64_t count = pair.second;
+            //     total_bytes += size * count;
+            //     double percentage = static_cast<double>(count) / total_ops * 100.0;
+
+            //     std::cout << std::left << std::setw(20) << size
+            //               << std::setw(25) << count
+            //               << std::fixed << std::setprecision(2) << percentage << " %" << "\n";
+            // }
+
+            std::cout << std::string(70, '-') << "\n";
+            std::cout << "Summary for " << title << ":\n";
+            std::cout << "  - Total Operations: " << total_ops << "\n";
+            // std::cout << "  - Total Bytes Transferred: " << total_bytes << " bytes (" 
+            //           << std::fixed << std::setprecision(2) << static_cast<double>(total_bytes) / (1024 * 1024) << " MB)\n";
+            // std::cout << "  - Average Size per Op: " << std::fixed << std::setprecision(2) 
+            //           << static_cast<double>(total_bytes) / total_ops << " bytes\n";
+        };
+        
+        // 报告写操作
+        report_section("WRITE Operations Size", write_size_stats_);
+        
+        // 报告读操作
+        report_section("READ Operations Size", read_size_stats_);
+    }
+
 };
 
 extern agent_stats agent_stats_inst;
+
+class RAII_Timer {
+    public:
+    RAII_Timer(MULTI_APP_THREAD_OP code,int iid){
+        start_time = rdtsc();
+        this->iid = iid;
+        multi_app_thread_op = code;
+    }
+
+    ~RAII_Timer() {
+        uint64_t end_time = rdtscp();
+        uint64_t elapsed_time = end_time - start_time;
+        agent_stats_inst.multi_app_thread_op_stats[iid][multi_app_thread_op]->record(elapsed_time);
+    }
+    private:
+    uint64_t start_time;
+    int iid;
+    MULTI_APP_THREAD_OP multi_app_thread_op = MULTI_APP_THREAD_OP::NONE;
+
+    uint64_t rdtsc() {
+      unsigned int lo, hi;
+      __asm__ __volatile__("rdtsc" : "=a" (lo), "=d" (hi));
+      return ((uint64_t)hi << 32) | lo;
+    }
+
+    uint64_t rdtscp() {
+      unsigned int lo, hi;
+      __asm__ __volatile__("rdtscp" : "=a" (lo), "=d" (hi));
+      return ((uint64_t)hi << 32) | lo;
+    }
+};

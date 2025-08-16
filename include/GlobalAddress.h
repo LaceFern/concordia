@@ -49,11 +49,11 @@ public:
 
   void print(const char *s) { printf("%s [%d, %lx]\n", s, nodeID, addr); }
 
-  // GlobalAddress operator+(int off) {
-  //   auto ret = *this;
-  //   ret.addr += off;
-  //   return ret;
-  // }
+  GlobalAddress operator+(int off) {
+    auto ret = *this;
+    ret.addr += off;
+    return ret;
+  }
 
   static GlobalAddress Null() {
     static GlobalAddress zero{0, 0};

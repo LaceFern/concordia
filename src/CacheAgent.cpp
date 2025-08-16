@@ -39,86 +39,86 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
   // }
 }
 
-void CacheAgent::queueThread() {
-  bindCore(NUMA_CORE_NUM - 1 - agentID);
-  Debug::notifyInfo("cache queue %d launch!\n", agentID);
+// void CacheAgent::queueThread() {
+//   bindCore(NUMA_CORE_NUM - 1 - agentID);
+//   Debug::notifyInfo("cache queue %d launch!\n", agentID);
 
-  while(true){
-    struct ibv_wc wc;
-    pollWithCQ(cCon->cq, 1, &wc);
-    uint64_t now_time_tsc = agent_stats_inst.rdtsc();
+//   while(true){
+//     struct ibv_wc wc;
+//     pollWithCQ(cCon->cq, 1, &wc);
+//     uint64_t now_time_tsc = agent_stats_inst.rdtsc();
 
-    struct queue_entry entry;
-    entry.wc = wc;
-    entry.starting_point = now_time_tsc;
-    (agent_stats_inst.queues[queueID])->push(entry);
+//     struct queue_entry entry;
+//     entry.wc = wc;
+//     entry.starting_point = now_time_tsc;
+//     (agent_stats_inst.queues[queueID])->push(entry);
 
-    // while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
-    // std::atomic_thread_fence(std::memory_order_release);
-    // agent_stats_inst.update_cache_recv_count(queueID);
-    // agent_stats_inst.update_cache_recv_count(sysID);
-  }
-}
+//     // while (!(agent_stats_inst.queues[queueID]->try_push(queue_entry{ wc, now_time_tsc, 0 }))) ;
+//     // std::atomic_thread_fence(std::memory_order_release);
+//     // agent_stats_inst.update_cache_recv_count(queueID);
+//     // agent_stats_inst.update_cache_recv_count(sysID);
+//   }
+// }
 
-void CacheAgent::processThread() {
-  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
-  Debug::notifyInfo("cache pure %d launch!\n", agentID);
+// void CacheAgent::processThread() {
+//   bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+//   Debug::notifyInfo("cache pure %d launch!\n", agentID);
 
-  while (true) {
-    queue_entry entry = agent_stats_inst.queues[queueID]->pop();
-    // std::atomic_thread_fence(std::memory_order_acquire);
-    uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
-    (void)waiting_time;
-    ibv_wc &wc = entry.wc;
+//   while (true) {
+//     queue_entry entry = agent_stats_inst.queues[queueID]->pop();
+//     // std::atomic_thread_fence(std::memory_order_acquire);
+//     uint64_t waiting_time = agent_stats_inst.rdtscp() - entry.starting_point;
+//     (void)waiting_time;
+//     ibv_wc &wc = entry.wc;
 
-    agent_stats_inst.start_record_multi_sys_thread(queueID);
-    uint64_t proc_starting_point = agent_stats_inst.rdtsc();
-    MULTI_SYS_THREAD_OP res_op = MULTI_SYS_THREAD_OP::NONE;
+//     agent_stats_inst.start_record_multi_sys_thread(queueID);
+//     uint64_t proc_starting_point = agent_stats_inst.rdtsc();
+//     MULTI_SYS_THREAD_OP res_op = MULTI_SYS_THREAD_OP::NONE;
     
-    RawMessage *m;
-    switch (int(wc.opcode)) {
-    case IBV_WC_RECV: // control message
+//     RawMessage *m;
+//     switch (int(wc.opcode)) {
+//     case IBV_WC_RECV: // control message
 
-      m = (RawMessage *)cCon->message->getMessage();
+//       m = (RawMessage *)cCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
-        agent_stats_inst.update_cache_recv_count(sysID);
-      }
+//       if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+//         res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
+//         agent_stats_inst.update_cache_recv_count(sysID);
+//       }
 
-      printRawMessage(m, "agent recv");
-      processSwitchMessage(m);
-      break;
-    case IBV_WC_SEND:
-      assert(false);
-      break;
-    case IBV_WC_RDMA_WRITE:
-      processImmRet(*(AgentWrID *)&wc.wr_id);
-      break;
-    case IBV_WC_RECV_RDMA_WITH_IMM:
-      assert(false);
-      break;
-    default:
-      assert(false);
-    }
+//       printRawMessage(m, "agent recv");
+//       processSwitchMessage(m);
+//       break;
+//     case IBV_WC_SEND:
+//       assert(false);
+//       break;
+//     case IBV_WC_RDMA_WRITE:
+//       processImmRet(*(AgentWrID *)&wc.wr_id);
+//       break;
+//     case IBV_WC_RECV_RDMA_WITH_IMM:
+//       assert(false);
+//       break;
+//     default:
+//       assert(false);
+//     }
 
-    // TODO:debug, find correct addr
-    if(agent_stats_inst.is_start()){
-      uint64_t proc_ending_point = agent_stats_inst.rdtscp();
-      uint64_t proc_time = proc_ending_point - proc_starting_point;
-      if(res_op != MULTI_SYS_THREAD_OP::NONE){
-        // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
-        agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, res_op);
-        agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
-      }
-      else{
-        agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
-        // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
-        agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
-      }
-    }
-  }
-}
+//     // TODO:debug, find correct addr
+//     if(agent_stats_inst.is_start()){
+//       uint64_t proc_ending_point = agent_stats_inst.rdtscp();
+//       uint64_t proc_time = proc_ending_point - proc_starting_point;
+//       if(res_op != MULTI_SYS_THREAD_OP::NONE){
+//         // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
+//         agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, res_op);
+//         agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
+//       }
+//       else{
+//         agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
+//         // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
+//         agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
+//       }
+//     }
+//   }
+// }
 
 void CacheAgent::agentThread() {
 
@@ -140,9 +140,9 @@ void CacheAgent::agentThread() {
     case IBV_WC_RECV: // control message
       m = (RawMessage *)cCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        agent_stats_inst.update_cache_recv_count(sysID);
-      }
+    //   if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+    //     agent_stats_inst.update_cache_recv_count(sysID);
+    //   }
 
       printRawMessage(m, "agent recv");
       processSwitchMessage(m);
@@ -244,7 +244,7 @@ void CacheAgent::processReadMissInv(RawMessage *m) {
 
     m->state = CacheStatus::SHARED;
     sendData2App(m, line, w.wrId);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -262,15 +262,15 @@ void CacheAgent::processReadMissInv(RawMessage *m) {
 #ifdef READ_MISS_DIRTY_TO_DIRTY
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
   sendData2App(m, line, w.wrId);
-  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_SHARED;
   sendData2Dir(m, line, RawMessageType::R_READ_MISS, w.wrId);
-  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 
   w.type = AgentPendingReason::NOP;
   sendData2App(m, line, w.wrId);
-  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 
@@ -307,10 +307,10 @@ void CacheAgent::processWriteMissInvShared(RawMessage *m) {
 
 #ifndef BASELINE
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_MISS_BASELINE);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 
@@ -347,7 +347,7 @@ void CacheAgent::processWriteMissInvDirty(RawMessage *m) {
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
 
   sendData2App(m, line, w.wrId);
-  agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void CacheAgent::processWriteSharedInv(RawMessage *m) {
@@ -369,10 +369,10 @@ void CacheAgent::processWriteSharedInv(RawMessage *m) {
 
 #ifndef BASELINE
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #else
   sendAck2App(m, RawMessageType::AGENT_ACK_WRITE_SHARED_BASELINE);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 

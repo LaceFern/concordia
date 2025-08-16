@@ -3,6 +3,7 @@
 
 #include "CacheAgent.h"
 #include "Directory.h"
+#include "agent_stat.h"
 
 #include "Controller.h"
 #include "DSMKeeper.h"
@@ -76,6 +77,9 @@ void DSM::registerThread() {
   cache.iCon = thCon[cache.iId];
 
   cache.registerThread();
+  if (cache.iId >= 6){
+    agent_stats_inst.clear_acecss_size_stats();
+  }
 
   if (is_first_run) {
     // Debug::notifyInfo("I am thread %d in node %d \n", cache.iId, myNodeID);
@@ -133,6 +137,8 @@ void DSM::initSwitchTable() {
 
 void DSM::read(const GlobalAddress &addr, uint32_t size, uint8_t *to) {
 
+  RAII_Timer timer(MULTI_APP_THREAD_OP::READ, cache.iId);
+
   assert(addr.addr <= conf.dsmSize * define::GB);
 
   uint32_t start = addr.addr % DSM_CACHE_LINE_SIZE;
@@ -165,6 +171,7 @@ void DSM::write(const GlobalAddress &addr, uint32_t size, const uint8_t *from) {
   //   Debug::notifyError("XXXXXXX %llu", addr.addr);
   //   exit(-1);
   // }
+  RAII_Timer timer(MULTI_APP_THREAD_OP::WRITE, cache.iId);
   assert(addr.addr <= conf.dsmSize * define::GB);
 
   uint32_t start = addr.addr % DSM_CACHE_LINE_SIZE;

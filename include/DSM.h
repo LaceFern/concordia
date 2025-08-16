@@ -8,6 +8,7 @@
 #include "Connection.h"
 #include "DSMKeeper.h"
 #include "GlobalAddress.h"
+#include "agent_stat.h"
 
 class Controller;
 class DSMKeeper;
@@ -98,6 +99,9 @@ public:
       printf("error rlock\n");
       assert(false);
     }
+    if (c > 10){
+        std::cout << "retry rlock " << c << " times" << std::endl;
+    }
     res = this->r_lock(addr, count);
     if (!res)
       goto retry;
@@ -112,6 +116,9 @@ public:
       printf("error wlock\n");
       exit(-1);
       assert(false);
+    }
+    if (c > 10){
+        std::cout << "retry wlock " << c << " times" << std::endl;
     }
     res = this->w_lock(addr, count);
     if (!res)
@@ -189,22 +196,27 @@ public:
 };
 
 inline bool DSM::r_lock(const GlobalAddress &addr, uint32_t size) {
+  RAII_Timer timer(MULTI_APP_THREAD_OP::RLOCK, cache.iId);
   return cache.r_lock(addr, size);
 }
 
 inline void DSM::r_unlock(const GlobalAddress &addr, uint32_t size) {
+    RAII_Timer timer(MULTI_APP_THREAD_OP::RUNLOCK, cache.iId);
   cache.r_unlock(addr, size);
 }
 
 inline bool DSM::w_lock(const GlobalAddress &addr, uint32_t size) {
+    RAII_Timer timer(MULTI_APP_THREAD_OP::WLOCK, cache.iId);
   return cache.w_lock(addr, size);
 }
 
 inline void DSM::w_unlock(const GlobalAddress &addr, uint32_t size) {
+    RAII_Timer timer(MULTI_APP_THREAD_OP::WUNLOCK, cache.iId);
   cache.w_unlock(addr, size);
 }
 
 inline GlobalAddress DSM::malloc(size_t size, bool align) {
+    RAII_Timer timer(MULTI_APP_THREAD_OP::MALLOC, cache.iId);
   return cache.malloc(size, align);
 }
 

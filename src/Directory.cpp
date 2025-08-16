@@ -10,7 +10,7 @@
 // #include <gperftools/profiler.h>
 
 #ifndef BASELINE
-// #define ENABLE_SWITCH_CC
+  #define ENABLE_SWITCH_CC
 #endif
 
 uint64_t dirSendDataCounter = 0;
@@ -192,12 +192,12 @@ void Directory::processThread() {
         dirRecvControlCounter++;
         auto m = (RawMessage *)dCon->message->getMessage();
 
-        if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-          // //debug
-          // printf("processThread: Im here!\n");
-          res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
-          agent_stats_inst.update_home_recv_count(sysID);
-        }
+        // if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+        //   // //debug
+        //   // printf("processThread: Im here!\n");
+        //   res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
+        //   agent_stats_inst.update_home_recv_count(sysID);
+        // }
 
         printRawMessage(m, "dir recv");
 
@@ -254,20 +254,20 @@ void Directory::processThread() {
     }
 
     // TODO:debug, find correct addr
-    if(agent_stats_inst.is_start()){
-      uint64_t proc_ending_point = agent_stats_inst.rdtscp();
-      uint64_t proc_time = proc_ending_point - proc_starting_point;
-      if(res_op != MULTI_SYS_THREAD_OP::NONE){
-        // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
-        agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, res_op);
-        agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
-      }
-      else{
-        agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
-        // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
-        agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
-      }
-    }
+    // if(agent_stats_inst.is_start()){
+    //   uint64_t proc_ending_point = agent_stats_inst.rdtscp();
+    //   uint64_t proc_time = proc_ending_point - proc_starting_point;
+    //   if(res_op != MULTI_SYS_THREAD_OP::NONE){
+    //     // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, res_op);
+    //     agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, res_op);
+    //     agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_IN_SYSTHREAD_QUEUE);
+    //   }
+    //   else{
+    //     agent_stats_inst.record_multi_sys_thread_with_op(queueID, proc_time, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
+    //     // agent_stats_inst.stop_record_multi_sys_thread_with_op(queueID, MULTI_SYS_THREAD_OP::PROCESS_NOT_TARGET);
+    //     agent_stats_inst.record_poll_thread_with_op(queueID, waiting_time, MULTI_POLL_THREAD_OP::WAITING_NOT_TARGET);
+    //   }
+    // }
   }
 }
 
@@ -288,11 +288,11 @@ void Directory::dirThread() {
       dirRecvControlCounter++;
       auto m = (RawMessage *)dCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        // //debug
-        // printf("dirThread: Im here!\n");
-        agent_stats_inst.update_home_recv_count(sysID);
-      }
+    //   if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+    //     // //debug
+    //     // printf("dirThread: Im here!\n");
+    //     agent_stats_inst.update_home_recv_count(sysID);
+    //   }
 
       printRawMessage(m, "dir recv");
 
@@ -332,7 +332,7 @@ void Directory::dirThread() {
         m.state = RawState::S_UNDEFINED;
         sendAck2AppByPassSwitch(&m,
                                 RawMessageType::N_DIR_ACK_APP_READ_MISS_DIRTY);
-        agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+        // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
       }
       break;
     }
@@ -373,7 +373,7 @@ void Directory::processSwitchMiss(RawMessage *m) {
       // printf("malloc chunck %lx\n", chunck.addr);
       sendAck2AppByPassSwitch(m, RawMessageType::PRIMITIVE_ALLOC_ACK,
                               chunck.addr);
-      agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+      // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
       break;
     }
 
@@ -395,7 +395,7 @@ void Directory::processSwitchMiss(RawMessage *m) {
 
   if (block->in_switch) {
     sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_MISS_SWITCH);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -466,11 +466,11 @@ void Directory::processSwitchHit(RawMessage *m) {
   if (m->mtype == RawMessageType::R_READ_MISS) {
     assert(m->state != RawState::S_DIRTY);
     sendData2App(m);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   } else if (m->mtype == RawMessageType::R_WRITE_MISS) {
     assert(m->state != RawState::S_DIRTY);
     sendData2App(m);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   } else {
     assert(false);
   }
@@ -480,7 +480,7 @@ void Directory::in_host_read_miss(RawMessage *m, BlockInfo *block) {
   // if (!block->lock.try_rLock()) {
   if (!block->lock.try_wLock()) {
     sendAck2AppByPassSwitch(m, RawMessageType::M_LOCK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -488,7 +488,7 @@ void Directory::in_host_read_miss(RawMessage *m, BlockInfo *block) {
     // block->lock.rUnlock();
     block->lock.wUnlock();
     sendAck2AppByPassSwitch(m, RawMessageType::M_CHECK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -496,7 +496,7 @@ void Directory::in_host_read_miss(RawMessage *m, BlockInfo *block) {
   case RawState::S_UNSHARED:
   case RawState::S_SHARED: {
     sendData2App(m);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     break;
   }
   case RawState::S_DIRTY: {
@@ -505,7 +505,7 @@ void Directory::in_host_read_miss(RawMessage *m, BlockInfo *block) {
       if (((block->bitmap >> i) & 1) == 1) {
         block->invalidation_cnt++;
         sendMessage2Agent(m, i, RawMessageType::DIR_2_AGENT_READ_MISS_DIRTY);
-        agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+        // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
         break;
       }
     }
@@ -519,21 +519,21 @@ void Directory::in_host_read_miss(RawMessage *m, BlockInfo *block) {
 void Directory::in_host_write_miss(RawMessage *m, BlockInfo *block) {
   if (!block->lock.try_wLock()) {
     sendAck2AppByPassSwitch(m, RawMessageType::M_LOCK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
   if ((m->mybitmap & block->bitmap) != 0) {
     block->lock.wUnlock();
     sendAck2AppByPassSwitch(m, RawMessageType::M_CHECK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
   switch (block->state) {
   case RawState::S_UNSHARED: {
     sendData2App(m);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     break;
   }
   case RawState::S_SHARED: {
@@ -546,11 +546,11 @@ void Directory::in_host_write_miss(RawMessage *m, BlockInfo *block) {
       if (((block->bitmap >> i) & 1) == 1) {
         block->invalidation_cnt++;
         sendMessage2Agent(m, i, RawMessageType::DIR_2_AGENT_WRITE_MISS_SHARED);
-        agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+        // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
       }
     }
     sendData2App(m);
-    agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     break;
   }
   case RawState::S_DIRTY: {
@@ -559,7 +559,7 @@ void Directory::in_host_write_miss(RawMessage *m, BlockInfo *block) {
       if (((block->bitmap >> i) & 1) == 1) {
         block->invalidation_cnt++;
         sendMessage2Agent(m, i, RawMessageType::DIR_2_AGENT_WRITE_MISS_DIRTY);
-        agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+        // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
         break;
       }
     }
@@ -573,7 +573,7 @@ void Directory::in_host_write_miss(RawMessage *m, BlockInfo *block) {
 void Directory::in_host_write_share(RawMessage *m, BlockInfo *block) {
   if (!block->lock.try_wLock()) {
     sendAck2AppByPassSwitch(m, RawMessageType::M_LOCK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -581,7 +581,7 @@ void Directory::in_host_write_share(RawMessage *m, BlockInfo *block) {
       (m->mybitmap & block->bitmap) == 0) {
     block->lock.wUnlock();
     sendAck2AppByPassSwitch(m, RawMessageType::M_CHECK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -592,7 +592,7 @@ void Directory::in_host_write_share(RawMessage *m, BlockInfo *block) {
     if (((block->bitmap >> i) & 1) == 1 && i != m->nodeID) {
       block->invalidation_cnt++;
       sendMessage2Agent(m, i, RawMessageType::DIR_2_AGENT_WRITE_SHARED);
-      agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+      // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #ifdef BASELINE
       has_share_nodes = true;
 #endif
@@ -602,20 +602,20 @@ void Directory::in_host_write_share(RawMessage *m, BlockInfo *block) {
 #ifdef BASELINE
   if (!has_share_nodes) {
     sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_WRITE_SHARED_BASELINE);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   } else {
     block->processing_request = RawMessageType::R_WRITE_SHARED;
   }
 #else
   sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_WRITE_SHARED);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 #endif
 }
 
 void Directory::in_host_evict_share(RawMessage *m, BlockInfo *block) {
   if (!block->lock.try_wLock()) {
     sendAck2AppByPassSwitch(m, RawMessageType::M_LOCK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
@@ -623,30 +623,30 @@ void Directory::in_host_evict_share(RawMessage *m, BlockInfo *block) {
       (m->mybitmap & block->bitmap) == 0) {
     block->lock.wUnlock();
     sendAck2AppByPassSwitch(m, RawMessageType::M_CHECK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
   sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_EVICT_SHARED);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void Directory::in_host_evict_dirty(RawMessage *m, BlockInfo *block) {
   if (!block->lock.try_wLock()) {
     sendAck2AppByPassSwitch(m, RawMessageType::M_LOCK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
   if (block->state != RawState::S_DIRTY || (m->mybitmap & block->bitmap) == 0) {
     block->lock.wUnlock();
     sendAck2AppByPassSwitch(m, RawMessageType::M_CHECK_FAIL);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
     return;
   }
 
   sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_EVICT_DIRTY);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  //agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void Directory::in_host_unlock(RawMessage *m, BlockInfo *block,
@@ -665,7 +665,7 @@ void Directory::in_host_unlock(RawMessage *m, BlockInfo *block,
 #ifdef UNLOCK_SYNC
   if (!is_evict) {
     sendAck2AppByPassSwitch(m, RawMessageType::UNLOCK_ACK);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    //agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   }
 #endif
 
@@ -928,7 +928,7 @@ void Directory::primitive_r_lock(RawMessage *m) {
                           lock_succ ? RawMessageType::PRIMITIVE_R_LOCK_SUCC
                                     : RawMessageType::PRIMITIVE_R_LOCK_FAIL,
                           m->destAddr);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  //agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void Directory::primitive_r_unlock(RawMessage *m) {
@@ -958,7 +958,7 @@ void Directory::primitive_r_unlock(RawMessage *m) {
   if (m->dirKey) {
     sendAck2AppByPassSwitch(m, RawMessageType::PRIMITIVE_UNLOCK_ACK,
                             m->destAddr);
-    agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+    //agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   }
 
 #endif
@@ -1012,7 +1012,7 @@ void Directory::primitive_w_lock(RawMessage *m) {
                           lock_succ ? RawMessageType::PRIMITIVE_W_LOCK_SUCC
                                     : RawMessageType::PRIMITIVE_W_LOCK_FAIL,
                           m->destAddr);
-  agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+  //agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
 
 void Directory::primitive_w_unlock(RawMessage *m) {
@@ -1039,14 +1039,14 @@ void Directory::processAgentAckBaseline(RawMessage *m) {
   if (block->processing_request == RawMessageType::R_WRITE_MISS) {
     if (block->bitmap == 0) {
       sendAck2AppByPassSwitch(m, RawMessageType::DIR_2_APP_WRITE_MISS_BASELINE);
-      agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+      // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
       block->processing_request = RawMessageType::NOP_REQUEST;
     }
   } else if (block->processing_request == RawMessageType::R_WRITE_SHARED) {
     if (bits_in(block->bitmap) == 1) {
       sendAck2AppByPassSwitch(m,
                               RawMessageType::DIR_2_APP_WRITE_SHARED_BASELINE);
-      agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
+      // agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
       block->processing_request = RawMessageType::NOP_REQUEST;
     }
   } else {

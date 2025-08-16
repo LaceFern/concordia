@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #Compiler options
 # set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -DNDEBUG -g")
-set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O3 -g -fopenmp -DNDEBUG")
+set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O2 -g -fno-omit-frame-pointer -fopenmp -DNDEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 ")
 
 # Link Options
@@ -67,6 +67,11 @@ ${TPCC_DIR}/Meta.cpp
 ${TPCC_DIR}/log.cpp
 ${TPCC_DIR}/gallocator.cpp
 )
+target_compile_definitions(ccDSM PRIVATE
+    LOCK
+    BACKOFF
+    # PROFILE
+)
 link_libraries(ccDSM)
 
 file(GLOB_RECURSE THRIFT_RPC_FILE ${THRIFT_SRC}/*.cpp)
@@ -91,6 +96,11 @@ foreach (TEST ${TEST_SRC})
 endforeach()
 
 add_executable(tpcc ${TPCC_DIR}/tpcc/TpccBenchmarkMain.cpp)
+target_compile_definitions(tpcc PRIVATE
+    LOCK
+    BACKOFF
+    # PROFILE
+)
 target_link_libraries(tpcc ${LINKS_FLAGS} ${LIBRARIES})
 
 

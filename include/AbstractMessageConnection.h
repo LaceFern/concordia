@@ -10,7 +10,7 @@ class Message;
 // #messageNR send pool and #messageNR message pool
 class AbstractMessageConnection {
 
-  const static int kBatchCount = 4;
+  const static int kBatchCount = 16;
 
 protected:
   ibv_qp *message; // ud or raw packet

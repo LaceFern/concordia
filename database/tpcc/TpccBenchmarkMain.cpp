@@ -8,6 +8,7 @@
 #include "BenchmarkArguments.h"
 #include "ClusterHelper.h"
 #include "ClusterSync.h"
+#include "ScopedPerfProfiler.h"
 #include <iostream>
 
 #include <algorithm>
@@ -37,12 +38,9 @@ int main(int argc, char* argv[]) {
   default_gallocator->registerThread();
 
 
-  std::cout << "1" << std::endl;
   synchronizer.Fence();
-  std::cout << "2" << std::endl;
   // initialize benchmark data
   GAddr storage_addr = initiator.InitStorage();
-  std::cout << "3" << std::endl;
   synchronizer.MasterBroadcast<GAddr>(&storage_addr); 
   std::cout << "storage_addr=" << storage_addr << std::endl;
   StorageManager storage_manager;
@@ -84,6 +82,11 @@ int main(int argc, char* argv[]) {
 
   {
     // run workload
+    // ScopedPerfProfiler profiler({
+    //         "cycles", "instructions", "branch-instructions", "branch-misses"
+    //     });
+    // FlameGraphProfiler profiler(999, "tpcc_cpu_profile.svg");
+    // OffCPUFlameGraphProfiler offcpu_profiler("my_tpcc_offcpu.svg");
     INIT_PROFILE_TIME(gThreadCount);
     TpccExecutor executor(&redirector, &storage_manager, gThreadCount);
     executor.Start();

@@ -53,12 +53,20 @@ private:
 
   virtual void ProcessQuery() {
     std::cout << "start process query" << std::endl;
-    boost::thread_group thread_group;
+    // boost::thread_group thread_group;
+    // for (size_t i = 0; i < thread_count_; ++i) {
+    //   // can bind threads to cores here
+    //   thread_group.create_thread(
+    //       boost::bind(&TransactionExecutor::ProcessQueryThread, this, i));
+    // }
+    // ------------------- MODIFICATION START -------------------
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count_); // 预留空间
+
     for (size_t i = 0; i < thread_count_; ++i) {
-      // can bind threads to cores here
-      thread_group.create_thread(
-          boost::bind(&TransactionExecutor::ProcessQueryThread, this, i));
+      threads.emplace_back(&TransactionExecutor::ProcessQueryThread, this, i);
     }
+    // -------------------- MODIFICATION END --------------------
     bool is_all_ready = true;
     while (1) {
       for (size_t i = 0; i < thread_count_; ++i) {
@@ -76,7 +84,14 @@ private:
     std::cout << "start processing..." << std::endl;
     is_begin_ = true;
     start_timestamp_ = timer_.GetTimePoint();
-    thread_group.join_all();
+    // thread_group.join_all();
+    // ------------------- MODIFICATION START -------------------
+    for (auto& t : threads) {
+        if (t.joinable()) {
+            t.join();
+        }
+    }
+    // -------------------- MODIFICATION END --------------------
     long long elapsed_time =
         timer_.CalcMilliSecondDiff(start_timestamp_, end_timestamp_);
     double throughput = total_count_ * 1.0 / elapsed_time;
@@ -97,6 +112,19 @@ private:
   }
 
   virtual void ProcessQueryThread(const size_t &thread_id) {
+
+    int core_id = thread_id + 4; // 同样，你可以使用更复杂的映射策略
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+
+    if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0) {
+        std::cerr << "Error setting thread affinity for thread " << thread_id 
+                  << " to core " << core_id << std::endl;
+    } else {
+        std::cout << "Thread " << thread_id << " successfully bound to core " << core_id << std::endl;
+    }
 
     default_gallocator->registerThread();
 

@@ -8,7 +8,7 @@ AbstractMessageConnection::AbstractMessageConnection(
 
   assert(messageNR % kBatchCount == 0);
 
-  send_cq = ibv_create_cq(ctx.ctx, 128, NULL, NULL, 0);
+  send_cq = ibv_create_cq(ctx.ctx, RAW_RECV_CQ_COUNT, NULL, NULL, 0);
 
   createQueuePair(&message, type, send_cq, cq, &ctx);
   modifyUDtoRTS(message, &ctx);
