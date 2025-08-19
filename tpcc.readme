@@ -25,10 +25,11 @@ profile:
     5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
     6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit(已注释)
 change:
-    7.tpcc ProcessQuery boost::thread->std::thread,并绑核心，对性能无影响
+    7./database/txn/TransactionExecutor.h ProcessQuery() 中为了方便看堆栈把 boost::thread->std::thread, 并且在函数内将线程绑核，对性能无影响
     8.include/AbstractMessageConnection.h kBatchCount 尝试过1/4/16 之前是4 对性能无影响
     9.尝试调整include/Common.h DSM_CACHE_LINE_WIDTH,DSM_CACHE_INDEX_WIDTH,CACHE_WAYS，cache总量不变情况下，4路组相联和8路组相联性能影响不大
-    10.createQueuePair 默认深度 128->1024,ibv_create_cq 深度 128->1024->32000 略微提高性能
-    11.相比初版代码运行时的实验环境，网络接口名称发生变动，因而修改了配置文件(arp-*.sh,tpcc/config.txt,host)和代码，脚本内用户名(zxy->tzr)
+    10.createQueuePair 默认深度(include/Rdma.h中函数定义) 128->1024,ibv_create_cq 深度 (RAW_RECV_CQ_COUNT) 128->1024->32000 略微提高性能
+    11.调节线程初始sendpool大小(APP_MESSAGE_NR,AGENT_MESSAGE_NR,DIR_MESSAGE_NR)至1024，预留批量接收区域(APP_POST_IMM_RECV)至1024，影响不大
+    12.相比初版代码运行时的实验环境，网络接口名称发生变动，因而修改了配置文件(arp-*.sh,tpcc/config.txt,host)和代码，脚本内用户名(zxy->tzr)
 
 
