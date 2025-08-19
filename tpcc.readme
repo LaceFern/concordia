@@ -32,10 +32,10 @@ profile:
     5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
     6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit(已注释)
 change:
-    7./database/txn/TransactionExecutor.h ProcessQuery() 中为了方便看堆栈把 boost::thread->std::thread, 并且在函数内将线程绑核，对性能无影响
-    8.include/AbstractMessageConnection.h kBatchCount 尝试过1/4/16 之前是4 对性能无影响
-    9.尝试调整include/Common.h DSM_CACHE_LINE_WIDTH,DSM_CACHE_INDEX_WIDTH,CACHE_WAYS，cache总量不变情况下，4路组相联和8路组相联性能影响不大
-    10.createQueuePair 默认深度(include/Rdma.h中函数定义) 128->1024,ibv_create_cq 深度 (RAW_RECV_CQ_COUNT) 128->1024->32000 略微提高性能
-    11.调节线程初始sendpool大小(APP_MESSAGE_NR,AGENT_MESSAGE_NR,DIR_MESSAGE_NR)至1024，预留批量接收区域(APP_POST_IMM_RECV)至1024，对性能影响不大
+    7.在 /database/txn/TransactionExecutor.h 里的 ProcessQuery 函数中为了方便看堆栈把 boost::thread 改为 std::thread , 并且在函数内将线程绑核，对性能无影响
+    8.调整 include/AbstractMessageConnection.h 里的 kBatchCount 参数：尝试过1/4/16，初始是4，对性能无影响
+    9.调整 include/Common.h 里的 DSM_CACHE_LINE_WIDTH , DSM_CACHE_INDEX_WIDTH , CACHE_WAYS，发现cache总大小不变情况下，4路组相联和8路组相联性能影响不大
+    10.调整 include/Rdma.h 里的 createQueuePair 函数中 qpsMaxDepth 参数(128->1024) ,调整 include/Common.h 里的 RAW_RECV_CQ_COUNT 宏（128->1024->32000，代表ibv_create_cq深度）：略微提高性能
+    11.调整 include/Common.h 里的 APP_MESSAGE_NR , AGENT_MESSAGE_NR , DIR_MESSAGE_NR 至1024 （代表线程初始sendpool大小），调整 APP_POST_IMM_RECV 至1024 (代表预留批量接收区域)：对性能影响不大
 
 
