@@ -3,11 +3,13 @@
     cd build
     sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
     注：由于在4机环境下测试，所以等比缩放了仓库数（8机时，仓库数=线程数*节点数，因而4机时该值由32改为16）
+    第二个scale factor，-sf[1]决定仓库初始大小（反比），新事务从初始仓库随机读取价格库存顾客等信息，尝试过0.5,2,10,20,100，对性能影响不大
 
 目前性能: 
-    环境与参数：4node 4thread 2GBcache timeLocal=0 gReadratio=0
+    环境与参数：4node 4thread 2GBcache timeLocal=0 gReadratio=0 (gReadratio 是把ReadWrite_Access变为ReadOnly_Access的比例,默认参数-r0下实际读操作大约占0.3)
     dist_ratio:                     |   0  |  20  |  40  |  60  |  80  |  100 |
     total_throughput[4node](Ktps)   | 58.7 | 49.6 | 45.0 | 43.5 | 41.2 | 40.5 |
+    GAM实测性能[4node](Ktps)         | 96.8 | 67.5 | 48.7 | 46.9 | 44.5 | 39.8 |
     论文性能[4node, estimated](Ktps) |  105 |  65  |  55  |  50  |  47  |  45  | 
     论文性能[8node](Ktps)            |  210 |  130 |  110 |  100 |  95  |  90  |
     *注：论文性能[4node, estimated]由论文性能[8node]减半得，为估计值。由于4机一致性维护的开销小于8机，所以测试性能本该好于论文性能[4node, estimated]
@@ -15,17 +17,18 @@
 代码修改记录:
 
 bug fixed:
-    1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord函数的返回类型
-    2.修改 database/tpcc/TpccProcedure.h 里的 all_local 变量 bool->int 四字节对齐
-    3.修改 database/tpcc/TpccSource.h 里 ModifyPayment() 中的 memcpy -> 复制构造
+    1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord 函数的返回类型，该函数无return但之前不是void
+    2.修改 database/tpcc/TpccProcedure.h 里的 all_local 变量 bool->int 四字节对齐后续指针操作
+    3.修改 database/tpcc/TpccSource.h 里 ModifyPayment() 中的 memcpy -> 复制构造，防止string堆区域二次析构
 profile:
     4.通过 include/custom_include/ScopedPerfProfiler 绘制火焰图(已注释) 结果在 ./images/ 中参考
     5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
     6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit(已注释)
 change:
-    7.tpcc ProcessQuery boost::thread->std::thread,并绑核心
-    8.include/AbstractMessageConnection.h kBatchCount 1/4/16
-    9.尝试调整include/Common.h DSM_CACHE_LINE_WIDTH,DSM_CACHE_INDEX_WIDTH,CACHE_WAYS
-    10.createQueuePair 默认深度 128->1024,ibv_create_cq 深度 1024 / 32000
+    7.tpcc ProcessQuery boost::thread->std::thread,并绑核心，对性能无影响
+    8.include/AbstractMessageConnection.h kBatchCount 尝试过1/4/16 之前是4 对性能无影响
+    9.尝试调整include/Common.h DSM_CACHE_LINE_WIDTH,DSM_CACHE_INDEX_WIDTH,CACHE_WAYS，cache总量不变情况下，4路组相联和8路组相联性能影响不大
+    10.createQueuePair 默认深度 128->1024,ibv_create_cq 深度 128->1024->32000 略微提高性能
+    11.相比初版代码运行时的实验环境，网络接口名称发生变动，因而修改了配置文件(arp-*.sh,tpcc/config.txt,host)和代码，脚本内用户名(zxy->tzr)
 
 
