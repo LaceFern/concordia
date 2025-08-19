@@ -1,17 +1,18 @@
-###运行: 前置准备见 ./README.md
+运行: 
+    前置准备见 ./README.md
     cd build
     sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
+    注：由于在4机环境下测试，所以等比缩放了仓库数（8机时，仓库数=线程数*节点数，因而4机时该值由32改为16）
 
 目前性能: 
+    环境与参数：4node 4thread 2GBcache timeLocal=0 Readratio=30
+    dist_ratio:                     |   0  |  20  |  40  |  60  |  80  |  100 |
+    total_throughput[4node](Ktps)   | 58.7 | 49.6 | 45.0 | 43.5 | 41.2 | 40.5 |
+    论文性能[4node, estimated](Ktps) |  105 |  65  |  55  |  50  |  47  |  45  | 
+    论文性能[8node](Ktps)            |  210 |  130 |  110 |  100 |  95  |  90  |
+    *注：论文性能[4node, estimated]由论文性能[8node]减半得，为估计值。由于4机一致性维护的开销小于8机，所以测试性能本该好于论文性能[4node, estimated]
 
-4node 4thread 2GBcache
-timeLocal=0 Readratio=30
-dist_ratio:                     |   0  |  20  |  40  |  60  |  80  |  100 |
-total_throughput[4node](Ktps)   | 58.7 | 49.6 | 45.0 | 43.5 | 41.2 | 40.5 |
-论文性能[4node, estimated](Ktps) |  105 |  65  |  55  |  50  |  47  |  45  | *注：该行性能由论文性能[8node]减半得，为估计值
-论文性能[8node](Ktps)            |  210 |  130 |  110 |  100 |  95  |  90  |
-
-changelog:
+代码修改记录:
 
 bug fixed:
     1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord函数的返回类型
