@@ -1,9 +1,9 @@
 运行: 
     前置准备见 ./README.md
-    cd build
-    sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
-    注：由于在4机环境下测试，所以等比缩放了仓库数（8机时，仓库数=线程数*节点数，因而4机时该值由32改为16）
-    第二个scale factor，-sf[1]决定仓库初始大小（反比），新事务从初始仓库随机读取价格库存顾客等信息，尝试过0.5,2,10,20,100，对性能影响不大
+    运行指令：
+        cd build
+        sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
+    *注：由于在4机环境下测试，所以等比缩放了第一个-sf参数（该参数表示总仓库数，8机时，仓库数=线程数*节点数，因而4机时该值由32改为16）；第二个scale factor，-sf[1]决定仓库初始大小（反比），新事务从初始仓库随机读取价格库存顾客等信息，尝试过0.5,2,10,20,100，对性能影响不大
 
 目前性能: 
     环境与参数：4node 4thread 2GBcache timeLocal=0 gReadratio=0 (gReadratio 是把ReadWrite_Access变为ReadOnly_Access的比例,默认参数-r0下实际读操作大约占0.3)
