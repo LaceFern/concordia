@@ -1,4 +1,4 @@
-运行: 前置准备见 ./README.md
+###运行: 前置准备见 ./README.md
     cd build
     sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
 
