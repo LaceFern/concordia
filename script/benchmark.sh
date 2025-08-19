@@ -9,10 +9,10 @@ time=$(date "+%d-%H-%M-%S")
 vary_shared_ratios () {
   node_nr=8
   # shared_arr=(0 10 20 30 40 50 60 70 80 90 100)
-  shared_arr=(100)
+  shared_arr=(20 60)
   for shared_ratio in ${shared_arr[@]}; do
     ./restartMemc.sh
-    ssh 192.168.189.34 "bash /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash /home/tzr/nfs/concordia/p4src/auto_run.sh >> /dev/null"
     ${mpi} ${node_nr}  ./benchmark ${node_nr} ${th_nr} 50 0 ${shared_ratio} ${time}
   done
 }
@@ -22,13 +22,13 @@ vary_locality_ratios () {
   locality_arr=(0 10 20 30 40 50 60 70 80 90 100)
   for locality_ratio in ${locality_arr[@]}; do
     ./restartMemc.sh
-    ssh 192.168.189.34 "bash /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash /home/tzr/nfs/concordia/p4src/auto_run.sh >> /dev/null"
     ${mpi} ${node_nr}  ./benchmark ${node_nr} ${th_nr} 50 ${locality_ratio} 20 ${time}
   done
 
   for locality_ratio in ${locality_arr[@]}; do
     ./restartMemc.sh
-    ssh 192.168.189.34 "bash /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash //home/tzr/nfs/concordia/p4src/auto_run.sh >> /dev/null"
     ${mpi} ${node_nr}  ./benchmark ${node_nr} ${th_nr} 50 ${locality_ratio} 60 ${time}
   done
 }
@@ -38,7 +38,7 @@ vary_read_ratios () {
   read_arr=(0 10 20 30 40 50 60 70 80 90 100)
   for read_ratio in ${read_arr[@]}; do
     ./restartMemc.sh
-    ssh 192.168.189.34 "bash /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/auto_run.sh >> /dev/null"
+    ssh 192.168.189.34 "bash /home/tzr/nfs/concordia/p4src/auto_run.sh >> /dev/null"
     ${mpi} ${node_nr}  ./benchmark ${node_nr} ${th_nr} ${read_ratio} 0 20 ${time}
   done
 

@@ -1,0 +1,27 @@
+运行: 前置准备见 ./README.md
+    cd build
+    sudo -E ./tpcc -p11111 -c4 -sf16 -sf10 -t300000 -f../database/tpcc/config.txt
+目前性能: 
+
+timeLocal=0 Readratio=30
+dist_ratio: 0 | 20 | 40 | 60 | 80 | 100
+            
+
+changelog:
+
+bug fixed:
+    1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord函数的返回类型
+    2.修改 database/tpcc/TpccProcedure.h 里的 all_local 变量 bool->int 四字节对齐
+    3.修改 database/tpcc/TpccSource.h 里 ModifyPayment() 中的 memcpy -> 复制构造
+profile:
+    4.通过 include/custom_include/ScopedPerfProfiler 绘制火焰图(已注释) 结果在 ./images/ 中参考
+    5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考
+    6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit
+change:
+    7.tpcc ProcessQuery boost::thread->std::thread,并绑核心
+    8.include/AbstractMessageConnection.h kBatchCount 1/4/16
+    9.尝试调整include/Common.h DSM_CACHE_LINE_WIDTH,DSM_CACHE_INDEX_WIDTH,CACHE_WAYS
+    10.createQueuePair 默认深度 128->1024,ibv_create_cq深度 1024 / 32000
+    11.
+
+

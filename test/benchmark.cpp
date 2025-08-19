@@ -11,14 +11,14 @@
 
 // #define SHOW_LATENCY
 
-#define MAX_THREAD 24
+#define MAX_THREAD 5
 
 #define OP_NUMS 2000000
 #define OBJ_SIZE 8
 
 #define MB (1024ull * 1024)
 
-const uint64_t BLOCK_SIZE = uint64_t(MB * 31);
+const uint64_t BLOCK_SIZE = uint64_t(MB * 62);
 
 #define SUB_PAGE_SIZE (512)
 #define STEPS (BLOCK_SIZE * nodeNR / SUB_PAGE_SIZE)
@@ -28,8 +28,8 @@ extern thread_local uint64_t evict_time;
 GlobalAddress *access_[MAX_THREAD];
 double latency[OP_NUMS];
 
-int nodeNR = 0;
-int threadNR = 0;
+int nodeNR = 4;
+int threadNR = 4;
 int readNR = 0;
 int locality = 0;
 int sharing = 0;
@@ -145,7 +145,7 @@ void benchmark(int nodeID, int threadID, const std::string &prefix) {
   uint8_t from[OBJ_SIZE];
   uint8_t to[OBJ_SIZE];
   timespec s, e;
-
+  
   for (int op = 0; op < OP_NUMS; ++op) {
 
     memset(from, 0, OBJ_SIZE);

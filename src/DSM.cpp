@@ -137,7 +137,7 @@ void DSM::initSwitchTable() {
 
 void DSM::read(const GlobalAddress &addr, uint32_t size, uint8_t *to) {
 
-  RAII_Timer timer(MULTI_APP_THREAD_OP::READ, cache.iId);
+  // RAII_Timer timer(MULTI_APP_THREAD_OP::READ, cache.iId);
 
   assert(addr.addr <= conf.dsmSize * define::GB);
 
@@ -171,7 +171,7 @@ void DSM::write(const GlobalAddress &addr, uint32_t size, const uint8_t *from) {
   //   Debug::notifyError("XXXXXXX %llu", addr.addr);
   //   exit(-1);
   // }
-  RAII_Timer timer(MULTI_APP_THREAD_OP::WRITE, cache.iId);
+  // RAII_Timer timer(MULTI_APP_THREAD_OP::WRITE, cache.iId);
   assert(addr.addr <= conf.dsmSize * define::GB);
 
   uint32_t start = addr.addr % DSM_CACHE_LINE_SIZE;

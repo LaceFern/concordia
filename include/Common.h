@@ -40,14 +40,14 @@
 typedef uint32_t Tag;
 typedef uint64_t DirKey;
 
-#define DSM_CACHE_LINE_WIDTH (10) // 4K
+#define DSM_CACHE_LINE_WIDTH (12) // 4K
 // #define DSM_CACHE_LINE_WIDTH (9) // 512
 #define DSM_CACHE_LINE_SIZE (1u << DSM_CACHE_LINE_WIDTH)
 
-#define DSM_CACHE_INDEX_WIDTH (18)
+#define DSM_CACHE_INDEX_WIDTH (15)
 #define DSM_CACHE_INDEX_SIZE (1u << DSM_CACHE_INDEX_WIDTH)
 
-#define CACHE_WAYS (8)
+#define CACHE_WAYS (16)
 
 
 #define DirKey2Addr(x) (x << DSM_CACHE_LINE_WIDTH)

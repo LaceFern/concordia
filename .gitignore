@@ -1,8 +1,10 @@
 build/
 build/*
 
-*.log
 *.html
+*.o
+log
+.vscode/
 p4src/ccDSM.tofino/*
 
 p4src/bf_drivers.*

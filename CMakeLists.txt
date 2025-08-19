@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #Compiler options
 # set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -DNDEBUG -g")
 set(CMAKE_C_FLAGS "-Wall -Wno-deprecated-declarations -Wsign-compare -O2 -g -fno-omit-frame-pointer -fopenmp -DNDEBUG")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 ")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11 -fPIC -mcmodel=large")
 
 # Link Options
 set(LINKS_FLAGS "-lpthread -libverbs -lmemcached -lthrift -lboost_filesystem -lboost_system -lboost_date_time -lboost_thread -lmpi")
@@ -61,6 +61,7 @@ set(COMMON_SRC ${PROJECT_SOURCE_DIR}/src)
 file(GLOB_RECURSE COMMON_FILE ${COMMON_SRC}/*.cpp)
 add_library(ccDSM STATIC ${COMMON_FILE} 
 ${TPCC_DIR}/tpcc/TpccRandomGenerator.cpp  
+${TPCC_DIR}/txn/TransactionManagerST.cpp
 ${TPCC_DIR}/txn/TransactionManager2PL.cpp
 ${TPCC_DIR}/utils/Profiler.cpp
 ${TPCC_DIR}/Meta.cpp
@@ -68,6 +69,7 @@ ${TPCC_DIR}/log.cpp
 ${TPCC_DIR}/gallocator.cpp
 )
 target_compile_definitions(ccDSM PRIVATE
+    # ST
     LOCK
     BACKOFF
     # PROFILE
@@ -92,11 +94,13 @@ file(GLOB TEST_SRC ${PROJECT_SOURCE_DIR}/test/*.cpp)
 foreach (TEST ${TEST_SRC})
     get_filename_component(TEST_NAME ${TEST} NAME_WE)
     add_executable(${TEST_NAME} ${TEST})
+    target_link_options(${TEST_NAME} PRIVATE "LINKER:--no-relax")
     target_link_libraries(${TEST_NAME} ${LINKS_FLAGS} ${LIBRARIES} ${Boost_LIBRARIES})
 endforeach()
 
 add_executable(tpcc ${TPCC_DIR}/tpcc/TpccBenchmarkMain.cpp)
 target_compile_definitions(tpcc PRIVATE
+    # ST
     LOCK
     BACKOFF
     # PROFILE

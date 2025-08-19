@@ -491,3 +491,6 @@ debug:
 另注：concordia自带的bindCore函数，传入的参数core表示CPU id，在实验室集群中，CPU0-11,24-35属于numa0
 
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
+
+4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+

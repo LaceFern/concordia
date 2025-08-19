@@ -339,7 +339,7 @@ public:
         // print_all_false_count(stdout,48);
         // std::cout << "cache hit" << cachehit.load() << std::endl;
         // print_app_thread_stat();
-        print_multi_app_thread_op_stats();
+        // print_multi_app_thread_op_stats();
     }
 
     void print_multi_app_thread_op_stats() {

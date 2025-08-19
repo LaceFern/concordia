@@ -196,27 +196,27 @@ public:
 };
 
 inline bool DSM::r_lock(const GlobalAddress &addr, uint32_t size) {
-  RAII_Timer timer(MULTI_APP_THREAD_OP::RLOCK, cache.iId);
+  // RAII_Timer timer(MULTI_APP_THREAD_OP::RLOCK, cache.iId);
   return cache.r_lock(addr, size);
 }
 
 inline void DSM::r_unlock(const GlobalAddress &addr, uint32_t size) {
-    RAII_Timer timer(MULTI_APP_THREAD_OP::RUNLOCK, cache.iId);
+    // RAII_Timer timer(MULTI_APP_THREAD_OP::RUNLOCK, cache.iId);
   cache.r_unlock(addr, size);
 }
 
 inline bool DSM::w_lock(const GlobalAddress &addr, uint32_t size) {
-    RAII_Timer timer(MULTI_APP_THREAD_OP::WLOCK, cache.iId);
+    // RAII_Timer timer(MULTI_APP_THREAD_OP::WLOCK, cache.iId);
   return cache.w_lock(addr, size);
 }
 
 inline void DSM::w_unlock(const GlobalAddress &addr, uint32_t size) {
-    RAII_Timer timer(MULTI_APP_THREAD_OP::WUNLOCK, cache.iId);
+    // RAII_Timer timer(MULTI_APP_THREAD_OP::WUNLOCK, cache.iId);
   cache.w_unlock(addr, size);
 }
 
 inline GlobalAddress DSM::malloc(size_t size, bool align) {
-    RAII_Timer timer(MULTI_APP_THREAD_OP::MALLOC, cache.iId);
+    // RAII_Timer timer(MULTI_APP_THREAD_OP::MALLOC, cache.iId);
   return cache.malloc(size, align);
 }
 

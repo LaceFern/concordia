@@ -1,6 +1,6 @@
 #!/bin/bash
 
-bin="/home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/"
+bin="/home/tzr/nfs/concordia/p4src/"
 
 function loop_exe()
 {
@@ -27,7 +27,7 @@ while true ; do
     $SDE_INSTALL/bin/bfshell -f $bin/port_show.txt > port_data
     up_ports=`grep -c UP $bin/port_data`
     echo $up_ports
-    if [ $up_ports == "8" ] ; then
+    if [ $up_ports == "4" ] ; then
         break
     fi
 done
