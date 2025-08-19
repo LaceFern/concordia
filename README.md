@@ -74,9 +74,9 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 ![no module error](images/generate_tofino_pd.png)
 
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
-![shared file error](images/generate_tofino_pd.png)
+![shared file error](images/bf_switch.png)
 
-3. 交换机debug
+4. 交换机debug
 
 命令行输入 bfshell 进入bfshell，输入 ucli ，然后输入 show
 
@@ -493,4 +493,5 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
