@@ -90,7 +90,7 @@ cd ccDSM/build; cmake ..; make -j;
 
 # 配置服务器网络（每台）
 
-*WARNING!*：以下配置很容易过时，请根据实际情况更改！！！！！（2025/8/20：请参考tpcc分支获取最新arp配置文件）
+---*WARNING*：以下配置很容易过时，请根据实际情况更改！！！！！（2025/8/20：请参考tpcc分支获取最新arp配置文件）---
 
 设置mtu为4200：sudo ifconfig enp65s0np0 mtu 4200 (已经写在arp-xxx.sh中了)
 
@@ -499,6 +499,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
