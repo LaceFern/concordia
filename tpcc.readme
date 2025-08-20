@@ -30,7 +30,7 @@
         4.通过 include/custom_include/ScopedPerfProfiler 绘制火焰图 (已注释) 结果在 ./images/ 中参考
         5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间 (已注释) ，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
         6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit (已注释)
-    change:
+    parameter change:
         7.在 /database/txn/TransactionExecutor.h 里的 ProcessQuery 函数中为了方便看堆栈把 boost::thread 改为 std::thread , 并且在函数内将线程绑核，对性能无影响
         8.调整 include/AbstractMessageConnection.h 里的 kBatchCount 参数：尝试过1/4/16，初始是4，对性能无影响
         9.调整 include/Common.h 里的 DSM_CACHE_LINE_WIDTH , DSM_CACHE_INDEX_WIDTH , CACHE_WAYS，发现cache总大小不变情况下，4路组相联和8路组相联性能影响不大
