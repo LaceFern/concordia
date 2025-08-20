@@ -41,7 +41,7 @@ concordia仓库原名ccDSM！
 
 4. 如果需要使用highpara_benchmark.py脚本，需要配置sudo指令免密执行，完善py内的一些初始化参数和对应arp文件
 
-5. 注意auto_run.sh和auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目，要按需修改（不要用脚本修改，nfs同步可能有时间差）
+5. 注意auto_run.sh和auto_run_ssh.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目，要按需修改（不要用脚本修改，nfs同步可能有时间差）
 
 6. 如果出现Thrift error dirQP: TException - service has thrown: InvalidTableOperation(code=9)或Thrift error agentQP: TException - service has thrown: InvalidTableOperation(code=9)，说明dir_set_port_tbl和agent_set_tbl开小了
 
@@ -499,6 +499,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
