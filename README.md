@@ -90,12 +90,12 @@ cd ccDSM/build; cmake ..; make -j;
 
 # 配置服务器网络（每台）
 
-设置每个节点网卡mtu为4200：sudo ifconfig [NIC name] mtu 4200 (注：已经写在arp-xxx.sh中了)
+设置网卡mtu为4200：sudo ifconfig [NIC name] mtu 4200 (注：已经写在arp-xxx.sh中了)
 
-在build目录下, 为每个节点加载arp条目：sudo bash ../arp-[node id].sh
+在build目录下，加载arp条目：sudo bash ../arp-[node id].sh
 
 # 设置服务器大页（每台）
-在build目录下：sudo bash ../hugepage.sh
+在build目录下，设置大页：sudo bash ../hugepage.sh
 
 # 运行服务器代码（每台）
 服务器export NIC_NAME=XXXX (例如enp65s0np0)
@@ -495,6 +495,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
