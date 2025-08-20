@@ -21,21 +21,20 @@
         2. 由于4机一致性维护的开销小于8机，所以Concordia test throughput[4node]本该好于Concordia paper throughput[4node, estimated]
 
 代码修改记录:
-
-bug fixed:
-    0.相比初版代码运行时的实验环境，网络接口名称发生变动，因而修改了配置文件(arp-*.sh,tpcc/config.txt,host)和代码，脚本内用户名(zxy->tzr)
-    1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord 函数的返回类型，该函数无return但之前不是void
-    2.修改 database/tpcc/TpccProcedure.h 里的 all_local 变量 bool->int 四字节对齐后续指针操作
-    3.修改 database/tpcc/TpccSource.h 里 ModifyPayment() 中的 memcpy -> 复制构造，防止string堆区域二次析构
-profile:
-    4.通过 include/custom_include/ScopedPerfProfiler 绘制火焰图(已注释) 结果在 ./images/ 中参考
-    5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
-    6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit(已注释)
-change:
-    7.在 /database/txn/TransactionExecutor.h 里的 ProcessQuery 函数中为了方便看堆栈把 boost::thread 改为 std::thread , 并且在函数内将线程绑核，对性能无影响
-    8.调整 include/AbstractMessageConnection.h 里的 kBatchCount 参数：尝试过1/4/16，初始是4，对性能无影响
-    9.调整 include/Common.h 里的 DSM_CACHE_LINE_WIDTH , DSM_CACHE_INDEX_WIDTH , CACHE_WAYS，发现cache总大小不变情况下，4路组相联和8路组相联性能影响不大
-    10.调整 include/Rdma.h 里的 createQueuePair 函数中 qpsMaxDepth 参数(128->1024) ,调整 include/Common.h 里的 RAW_RECV_CQ_COUNT 宏（128->1024->32000，代表ibv_create_cq深度）：略微提高性能
-    11.调整 include/Common.h 里的 APP_MESSAGE_NR , AGENT_MESSAGE_NR , DIR_MESSAGE_NR 至1024 （代表线程初始sendpool大小），调整 APP_POST_IMM_RECV 至1024 (代表预留批量接收区域)：对性能影响不大
+    bug fixed:
+        0.相比初版代码运行时的实验环境，网络接口名称发生变动，因而修改了配置文件(arp-*.sh,tpcc/config.txt,host)和代码，脚本内用户名(zxy->tzr)
+        1.修改 database/tpcc/TpccPopulator.h GenerateDistrictNewOrderRecord 函数的返回类型，该函数无return但之前不是void
+        2.修改 database/tpcc/TpccProcedure.h 里的 all_local 变量 bool->int 四字节对齐后续指针操作
+        3.修改 database/tpcc/TpccSource.h 里 ModifyPayment() 中的 memcpy -> 复制构造，防止string堆区域二次析构
+    profile:
+        4.通过 include/custom_include/ScopedPerfProfiler 绘制火焰图(已注释) 结果在 ./images/ 中参考
+        5.通过 include/custom_include/agent_stat RAII_Timer 记录每个API时间(已注释)，结果在 ./images/ 中参考 (rdtsc单位2.2GHz)
+        6.其他的agent_stats_inst统计，RecordRead，RecordWrite,cachehit(已注释)
+    change:
+        7.在 /database/txn/TransactionExecutor.h 里的 ProcessQuery 函数中为了方便看堆栈把 boost::thread 改为 std::thread , 并且在函数内将线程绑核，对性能无影响
+        8.调整 include/AbstractMessageConnection.h 里的 kBatchCount 参数：尝试过1/4/16，初始是4，对性能无影响
+        9.调整 include/Common.h 里的 DSM_CACHE_LINE_WIDTH , DSM_CACHE_INDEX_WIDTH , CACHE_WAYS，发现cache总大小不变情况下，4路组相联和8路组相联性能影响不大
+        10.调整 include/Rdma.h 里的 createQueuePair 函数中 qpsMaxDepth 参数(128->1024) ,调整 include/Common.h 里的 RAW_RECV_CQ_COUNT 宏（128->1024->32000，代表ibv_create_cq深度）：略微提高性能
+        11.调整 include/Common.h 里的 APP_MESSAGE_NR , AGENT_MESSAGE_NR , DIR_MESSAGE_NR 至1024 （代表线程初始sendpool大小），调整 APP_POST_IMM_RECV 至1024 (代表预留批量接收区域)：对性能影响不大
 
 
