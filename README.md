@@ -46,6 +46,9 @@ concordia仓库原名ccDSM！
 6. 如果出现Thrift error dirQP: TException - service has thrown: InvalidTableOperation(code=9)或Thrift error agentQP: TException - service has thrown: InvalidTableOperation(code=9)，说明dir_set_port_tbl和agent_set_tbl开小了
 
 # 编译运行交换机代码
+
+选择正确的SDE版本: sudo update-alternatives --config bf-sde
+
 进入./p4src文件夹
 
 在当前用户根目录下（e.g., /home/zxy）运行 ln -s /root/Software/bf-sde-8.9.1 bf-sde-8.9.1
@@ -495,6 +498,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
