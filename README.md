@@ -65,8 +65,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 
 编译: ./build.sh 时间比较长
 
-运行: sudo -E ./run.sh
-
 运行并enable port： sudo -E ./auto_run.sh
 
 注意auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目
@@ -498,6 +496,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
