@@ -80,7 +80,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 3. 若在运行sudo -E ./auto_run.sh时出现下图write port报错，不用在意，不影响实验
 ![write port error](images/write_port_error.jpg)
 
-4. 交换机debug
+4. 若在运行sudo -E ./auto_run.sh时出现下图resource busy报错，说明交换机上已经有一个程序占着在跑了，通常是hello_bfrt，可以用sudo killall hello_bfrt杀掉（如果没用请联系管理员）
+![resource busy error](images/resource_busy.jpg)
+
+5. 交换机debug
 
 命令行输入 bfshell 进入bfshell，输入 ucli ，然后输入 show
 
@@ -496,6 +499,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
