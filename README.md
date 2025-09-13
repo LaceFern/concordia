@@ -84,11 +84,15 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
 
 在r2上运行sudo  -E  ./benchmark 2 4 50 50 50；
 
-注意：
+报错信息：
 
 1. 如果发现了“XXXX: Connection timed out failed to modify QP state to RTS”
 
 一般是arp缓存有问题，执行arp-*.sh，使用arp -a查看
+
+如果在运行highpara_benchmark.py过程中遇到该问题（伴随show_gids发现网卡INDEX不连续（正确：0 1 2 3，错误：0 1 2 4）），记得运行kill_all.py
+
+重要！记得检查kill_all.py中是否真的把所有机器上的原先进程都杀掉了
 
 2. 在DSMKepper.cpp里进行了远程ssh的执行:
 
@@ -98,8 +102,20 @@ P.s., r1-r4网卡分别是 enp65s0np0, enp28s0np0, enp28s0np0, enp62s0np0
     system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/mc.py");
   }
 ```
+如果发现报错 root@192.168.189.34: Permission denied (publickey).
 
-需要考虑sudo -E导致的ssh问题（首次建立需要ssh yes一下，不然就算把公钥放进交换机，程序也无法正确执行）
+需要考虑sudo -E执行导致的ssh问题（首次建立需要ssh yes一下，不然就算把公钥放进交换机，程序也无法正确执行）
+
+可以把改成如下
+
+```c
+  if (this->getMyNodeID() == 0) {
+    system("sudo -u zxy ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/table.py");
+    system("sudo -u zxy ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/mc.py");
+  }
+```
+若该段代码正确执行，则节点之间可以ping通，反之ping不通
 
 #  自动化运行
 查看script/benchmark.sh，还没仔细看，应该需要看看权限问题，使用mpi跑
+
