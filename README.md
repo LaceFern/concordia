@@ -135,7 +135,7 @@ cd ccDSM/build; cmake ..; make -j;
 在r4上运行sudo  -E  ./highpara_benchmark --no_node 4 --no_thread 4 --locality 0 --shared_ratio 100 --read_ratio 50 --is_cache 1 --cache_rw 0 --is_request 0 --request_rw 0 --is_home 0 --home_node_id 2 --result_dir /home/zxy/concordia_result_2
 
 
-注意：
+报错信息：
 
 1. 如果发现了“XXXX: Connection timed out failed to modify QP state to RTS”
 
@@ -153,8 +153,19 @@ cd ccDSM/build; cmake ..; make -j;
     system("ssh wq@192.168.189.34 /home/wq/nfs/ccDSM/p4src/mc.py");
   }
 ```
+如果发现报错 root@192.168.189.34: Permission denied (publickey).
 
-需要考虑sudo -E导致的ssh问题（首次建立需要ssh yes一下，不然就算把公钥放进交换机，程序也无法正确执行）
+需要考虑sudo -E执行导致的ssh问题（首次建立需要ssh yes一下，不然就算把公钥放进交换机，程序也无法正确执行）
+
+可以把改成如下
+
+```c
+  if (this->getMyNodeID() == 0) {
+    system("sudo -u zxy ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/table.py");
+    system("sudo -u zxy ssh zxy@192.168.189.34 /home/zxy/nfs/DSM_prj/concordia_tmp/concordia/p4src/mc.py");
+  }
+```
+若该段代码正确执行，则节点之间可以ping通，反之ping不通
 
 #  自动化运行
 查看script/benchmark.sh，还没仔细看，应该需要看看权限问题，使用mpi跑
@@ -499,6 +510,7 @@ debug:
 3. MAX_APP_THREAD宏已存在，初始值为16，不可重复在agent_stat.h中定义; MAX_THREAD宏的值需要大于等于MAX_APP_THREAD
 
 4. 为什么benchmark BLOCKSIZE = 256M 会卡死?
+
 
 
 
