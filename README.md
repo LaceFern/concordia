@@ -33,20 +33,21 @@ concordia仓库原名ccDSM！
 
   NR_CACHE_AGENT：4
 
-  #define DIR_ID_MASK 0x3 (注，=0b11)
+  #define DIR_ID_MASK 0x3 (注，=0b11,交换机代码要重新编译)
 
-  #define AGENT_ID_MASK 0x3 (注，=0b11)
+  #define AGENT_ID_MASK 0x3 (注，=0b11,交换机代码要重新编译)
 
 3. 如果需要目录下放，需要打开 ENABLE_SWITCH_CC 宏
 
 4. 如果需要使用highpara_benchmark.py脚本，需要配置sudo指令免密执行，完善py内的一些初始化参数和对应arp文件
 
-5. 注意auto_run.sh和auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目，要按需修改（不要用脚本修改，nfs同步可能有时间差）
+5. 注意auto_run.sh和auto_run_ssh.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目，要按需修改（不要用脚本修改，nfs同步可能有时间差）
 
 6. 如果出现Thrift error dirQP: TException - service has thrown: InvalidTableOperation(code=9)或Thrift error agentQP: TException - service has thrown: InvalidTableOperation(code=9)，说明dir_set_port_tbl和agent_set_tbl开小了
 
 # 编译运行交换机代码
-进入./p4src文件夹
+
+选择正确的SDE版本: sudo update-alternatives --config bf-sde
 
 在当前用户根目录下（e.g., /home/zxy）运行 ln -s /root/Software/bf-sde-8.9.1 bf-sde-8.9.1
 
@@ -60,6 +61,8 @@ export PATH=$PATH:$SDE_INSTALL/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 ```
 
+位置: 进入./p4src文件夹
+
 编译: ./build.sh 时间比较长
 
 运行: sudo -E ./run.sh
@@ -68,13 +71,13 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SDE_INSTALL/lib
 
 注意auto_run.sh中[ $up_ports == "4" ] ；其中4是等待需要up的端口数目
 
-报错信息：
+报错信息 (注：看master分支，最为全面)：
 
 1. 若出现下图generate_tofino_pd报错，可能是SDE版本不对，没能在指定位置找到相应文件
 ![no module error](images/generate_tofino_pd.png)
 
 2. 若出现下图bf_switchd报错，可能是系统路径不对，需要export LD_LIBRARY_PATH=$SDE_INSTALL/lib
-![shared file error](images/generate_tofino_pd.png)
+![shared file error](images/bf_switch.png)
 
 3. 交换机debug
 

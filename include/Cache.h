@@ -175,7 +175,7 @@ private:
   LineInfo *findLineForAgent(uint16_t nodeID, DirKey dirKey);
 
   static int get_evict_index(LineSet &set, LineInfo *&line);
-  bool evictLine(LineInfo *line, CacheStatus c, const GlobalAddress &addr);
+  bool evictLine(LineInfo *line, CacheStatus c, const GlobalAddress &addr, const GlobalAddress &addr_in_waiting);
   bool evictLineShared(const GlobalAddress &addr, LineInfo *line);
   bool evictLineDirty(const GlobalAddress &addr, LineInfo *line);
 

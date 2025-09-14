@@ -40,15 +40,22 @@
 typedef uint32_t Tag;
 typedef uint64_t DirKey;
 
+#define CACHE_WAYS (8)
+
 #define DSM_CACHE_LINE_WIDTH (12) // 4K
 // #define DSM_CACHE_LINE_WIDTH (9) // 512
 #define DSM_CACHE_LINE_SIZE (1u << DSM_CACHE_LINE_WIDTH)
 
-#define DSM_CACHE_INDEX_WIDTH (16)
-#define DSM_CACHE_INDEX_SIZE (1u << DSM_CACHE_INDEX_WIDTH)
 
-#define CACHE_WAYS (8)
+// 运行时可变的全局变量（由初始化函数在程序启动时计算赋值）
+extern std::size_t g_dsm_cache_index_size;  // 真实的 set 数（向上取 2 的幂）
+extern int         g_dsm_cache_index_width; // 位宽 = ceil(log2(size))
+// 保持你原有的“宏接口”（调用点不需要改）
+#define DSM_CACHE_INDEX_SIZE  (g_dsm_cache_index_size)
+#define DSM_CACHE_INDEX_WIDTH (g_dsm_cache_index_width)
 
+//用于标识本次测试是否开启了目录下放
+extern int g_enable_switch_cc_flag;
 
 #define DirKey2Addr(x) (x << DSM_CACHE_LINE_WIDTH)
 
@@ -58,25 +65,25 @@ typedef uint64_t DirKey;
 
 #define POST_RECV_PER_RC_QP 128
 
-#define RAW_RECV_CQ_COUNT 128
+#define RAW_RECV_CQ_COUNT 1024
 
 // { app thread
 #define MAX_APP_THREAD 48
 
-#define APP_MESSAGE_NR 96
+#define APP_MESSAGE_NR 1024
 
 #define APP_POST_IMM_RECV 16
 // }
 
 // { cache agent thread
-#define NR_CACHE_AGENT 1
+#define NR_CACHE_AGENT 4
 
-#define AGENT_MESSAGE_NR 96
+#define AGENT_MESSAGE_NR 1024
 
 // { dir thread
-#define NR_DIRECTORY 1
+#define NR_DIRECTORY 4
 
-#define DIR_MESSAGE_NR 128
+#define DIR_MESSAGE_NR 1024
 // }
 
 void bindCore(uint16_t core);

@@ -24,24 +24,24 @@ CacheAgent::CacheAgent(CacheAgentConnection *cCon, RemoteConnection *remoteInfo,
 
   mybitmap = 1 << nodeID;
 
-  sysID = NR_DIRECTORY + agentID;
-  agent = new std::thread(&CacheAgent::agentThread, this);
   // sysID = NR_DIRECTORY + agentID;
-  // if(agentID < agent_stats_inst.cache_queue_num){
-  //   queueID = agent_stats_inst.dir_queue_num + agentID;
-  //   agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
+  // agent = new std::thread(&CacheAgent::agentThread, this);
+  sysID = NR_DIRECTORY + agentID;
+  if(agentID < agent_stats_inst.cache_queue_num){
+    queueID = agent_stats_inst.dir_queue_num + agentID;
+    agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
 
-  //   processTh = new std::thread(&CacheAgent::processThread, this);
-  //   agent = new std::thread(&CacheAgent::queueThread, this);
-  // }
-  // else{
-  //   agent = new std::thread(&CacheAgent::agentThread, this);
-  // }
+    processTh = new std::thread(&CacheAgent::processThread, this);
+    agent = new std::thread(&CacheAgent::queueThread, this);
+  }
+  else{
+    agent = new std::thread(&CacheAgent::agentThread, this);
+  }
 }
 
 void CacheAgent::queueThread() {
   bindCore(NUMA_CORE_NUM - 1 - agentID);
-  Debug::notifyInfo("cache queue %d launch!\n", agentID);
+  Debug::notifyInfo("cache queue %d launch!", agentID);
 
   while(true){
     struct ibv_wc wc;
@@ -62,7 +62,7 @@ void CacheAgent::queueThread() {
 
 void CacheAgent::processThread() {
   bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
-  Debug::notifyInfo("cache pure %d launch!\n", agentID);
+  Debug::notifyInfo("cache pure %d launch!", agentID);
 
   while (true) {
     queue_entry entry = agent_stats_inst.queues[queueID]->pop();
@@ -81,10 +81,11 @@ void CacheAgent::processThread() {
 
       m = (RawMessage *)cCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
-        agent_stats_inst.update_cache_recv_count(sysID);
-      }
+      // if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+      //   res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_CACHE_NODE;
+      //   agent_stats_inst.update_cache_recv_count(sysID);
+      // }
+      agent_stats_inst.update_cache_recv_count(sysID);
 
       printRawMessage(m, "agent recv");
       processSwitchMessage(m);
@@ -125,7 +126,7 @@ void CacheAgent::agentThread() {
   bindCore(NUMA_CORE_NUM - 1 - agentID);
   // bindCore(NUMA_CORE_NUM - agentID);
 
-  Debug::notifyInfo("cache agent %d launch!\n", agentID);
+  Debug::notifyInfo("cache agent %d launch!", agentID);
   while (true) {
     struct ibv_wc wc;
     RawMessage *m;
@@ -140,9 +141,10 @@ void CacheAgent::agentThread() {
     case IBV_WC_RECV: // control message
       m = (RawMessage *)cCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        agent_stats_inst.update_cache_recv_count(sysID);
-      }
+      // if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+      //   agent_stats_inst.update_cache_recv_count(sysID);
+      // }
+      agent_stats_inst.update_cache_recv_count(sysID);
 
       printRawMessage(m, "agent recv");
       processSwitchMessage(m);
@@ -241,7 +243,6 @@ void CacheAgent::processReadMissInv(RawMessage *m) {
     AgentWrID w;
     w.wrId = (uint64_t)line;
     w.type = AgentPendingReason::NOP;
-
     m->state = CacheStatus::SHARED;
     sendData2App(m, line, w.wrId);
     agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
@@ -345,7 +346,6 @@ void CacheAgent::processWriteMissInvDirty(RawMessage *m) {
   AgentWrID w;
   w.wrId = (uint64_t)line;
   w.type = AgentPendingReason::WAIT_WRITE_BACK_2_INVALID;
-
   sendData2App(m, line, w.wrId);
   agent_stats_inst.data_packet_send_count[MAX_APP_THREAD + sysID] += 1;
 }
@@ -379,16 +379,13 @@ void CacheAgent::processWriteSharedInv(RawMessage *m) {
 //////////////////////////////////////////////////////////////////////////
 void CacheAgent::sendData2Dir(RawMessage *m, LineInfo *l, RawMessageType type,
                               uint64_t wrId) {
-
   agentSendDataCounter++;
   uint16_t dirID = m->dirKey % NR_DIRECTORY;
-
   RawImm imm;
   imm.mtype = type;
   imm.nodeID = m->nodeID;
   imm.appID = m->appID;
   imm.agentNodeID = nodeID;
-
   rdmaWrite(cCon->data[dirID][m->dirNodeID], (uint64_t)l->data,
             remoteInfo[m->dirNodeID].dsmBase + DirKey2Addr(m->dirKey),
             DSM_CACHE_LINE_SIZE, cCon->cacheLKey,
@@ -400,26 +397,20 @@ void CacheAgent::sendData2App(RawMessage *m, LineInfo *l, uint64_t wrId) {
   RawImm imm;
   imm.bitmap = m->bitmap;
   imm.state = m->state;
-
   rdmaWrite(cCon->toApp[m->appID][m->nodeID], (uint64_t)l->data, m->destAddr,
             DSM_CACHE_LINE_SIZE, cCon->cacheLKey,
             remoteInfo[m->nodeID].appRKey[m->appID], imm.imm, true, wrId);
 }
 
 void CacheAgent::sendAck2App(RawMessage *m, RawMessageType type) {
-
   agentSendControlCounter++;
   RawMessage *ack = (RawMessage *)cCon->message->getSendPool();
-
   *ack = *m;
-
   ack->qpn = cCon->message->getQPN();
   ack->mtype = type;
   ack->mybitmap = mybitmap;
   ack->is_app_req = 0;
-
   printRawMessage(ack, "agent send");
-
   cCon->sendMessage(ack);
 }
 

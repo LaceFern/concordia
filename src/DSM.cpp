@@ -34,9 +34,9 @@ DSM::DSM(const DSMConfig &conf)
   baseAddr = (uint64_t)hugePageAlloc(conf.dsmSize * define::GB);
 
   Debug::notifyInfo("shared memory size: %dGB", conf.dsmSize);
-  Debug::notifyInfo("cache size: %dGB",
+  Debug::notifyInfo("cache size: %dMB",
                     (1ull << (DSM_CACHE_LINE_WIDTH + DSM_CACHE_INDEX_WIDTH)) *
-                        CACHE_WAYS / define::GB);
+                        CACHE_WAYS / define::MB);
 
   // warmup
   memset((char *)baseAddr, 0, conf.dsmSize * define::GB);

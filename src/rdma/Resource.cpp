@@ -37,7 +37,7 @@ bool createContext(RdmaContext *context, uint8_t port, int gidIndex,
     }
 
     dev = deviceList[devIndex];
-    printf("I open %s :)\n", ibv_get_device_name(dev));
+    // printf("I open %s :)\n", ibv_get_device_name(dev));
 
     // get device handle
     ctx = ibv_open_device(dev);

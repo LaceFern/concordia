@@ -49,12 +49,12 @@ bool destoryContext(RdmaContext *context);
 ibv_mr *createMemoryRegion(uint64_t mm, uint64_t mmSize, RdmaContext *ctx);
 
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *cq,
-                     RdmaContext *context, uint32_t qpsMaxDepth = 128,
+                     RdmaContext *context, uint32_t qpsMaxDepth = 1024,
                      uint32_t maxInlineData = 0);
 
 bool createQueuePair(ibv_qp **qp, ibv_qp_type mode, ibv_cq *send_cq,
                      ibv_cq *recv_cq, RdmaContext *context,
-                     uint32_t qpsMaxDepth = 128, uint32_t maxInlineData = 0);
+                     uint32_t qpsMaxDepth = 1024, uint32_t maxInlineData = 0);
 
 void fillAhAttr(ibv_ah_attr *attr, uint32_t remoteLid, uint8_t *remoteGid,
                 RdmaContext *context);

@@ -401,7 +401,7 @@ re_evict:
   printf("(%d, %d) try to evict %x, %d\n", dsm->myNodeID, iId,
          evictAddr.getDirKey(), evictAddr.nodeID);
 #endif
-  if (!evictLine(line, t.status, evictAddr)) {
+  if (!evictLine(line, t.status, evictAddr, addr)) {
     line->cas(t.tag, CacheStatus::BEING_EVICT, t.status);
 #ifdef VERBOSE
     printf("(%d, %d) try to evict %x, %d failed\n", dsm->myNodeID, iId,
@@ -480,6 +480,7 @@ void Cache::sendMessage2Dir(LineInfo *info, RawMessageType type,
   if (pending_unlock_ack) {
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
+    agent_stats_inst.update_request_recv_count(iId);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
     (void)ack;
 
@@ -488,31 +489,22 @@ void Cache::sendMessage2Dir(LineInfo *info, RawMessageType type,
 #endif
 
   RawMessage *m = (RawMessage *)iCon->message->getSendPool();
-
   m->qpn = iCon->message->getQPN();
   m->mtype = type;
   m->dirKey = dirKey;
-
   m->dirNodeID = dirNodeID;
   m->nodeID = dsm->myNodeID;
-
   m->appID = iId;
-
   m->mybitmap = dsm->mybitmap;
   m->state = RawState::S_UNDEFINED;
-
   m->is_app_req = enter_pipeline;
-
   m->destAddr = (uint64_t)info->data;
-
   printRawMessage(m, "app send");
-
   if (m->is_app_req) {
     m->set_tag_and_index();
   } else { // sync and malloc
     m->invalidate_tag();
   }
-
   iCon->sendMessage(m);
 }
 
@@ -521,31 +513,20 @@ void Cache::sendUnlock(uint16_t bitmap, uint8_t state, uint8_t dirNodeID,
   // Debug::notifyError("%s %d", __FILE__, __LINE__);
 
   // sleep(1);
-
   RawMessage *m = (RawMessage *)iCon->message->getSendPool();
-
   m->qpn = iCon->message->getQPN();
   m->mtype = type;
-
   m->dirKey = dirKey;
   m->dirNodeID = dirNodeID;
-
   m->nodeID = dsm->myNodeID;
   m->appID = iId;
-
   m->mybitmap = dsm->mybitmap;
-
   m->bitmap = bitmap;
   m->state = state;
-
   m->is_app_req = 0;
-
   m->set_tag_and_index();
-
   iCon->sendMessage(m);
-
   printRawMessage(m, "app unlock");
-
 #ifdef UNLOCK_SYNC
   if (type != RawMessageType::R_UNLOCK_EVICT) {
     pending_unlock_ack = true;
@@ -560,7 +541,7 @@ void Cache::sendUnlock(uint16_t bitmap, uint8_t state, uint8_t dirNodeID,
 }
 
 bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
-  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
+  if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_READ_MISS, addr.nodeID, dirKey);
@@ -570,6 +551,7 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
   agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
 
   // COMMENT: why need to receive other packets? -- home node inform request node that cache node will send data to request node (two packets need receiving)
@@ -591,6 +573,7 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
       agent_stats_inst.control_packet_send_count[iId] += 1;
 #else
       pollWithCQ(iCon->cq, 1, &wc);
+      agent_stats_inst.update_request_recv_count(iId);
       assert(wc.opcode == IBV_WC_RECV);
       RawMessage *ack = (RawMessage *)iCon->message->getMessage();
       printRawMessage(ack);
@@ -674,6 +657,7 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 #endif
 
       pollWithCQ(iCon->cq, 1, &wc);
+      agent_stats_inst.update_request_recv_count(iId);
       assert(wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM);
 
       assert(((RawImm *)&wc.imm_data)->state == RawState::S_DIRTY);
@@ -699,7 +683,7 @@ bool Cache::readMiss(const GlobalAddress &addr, LineInfo *info) {
 }
 
 bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
-  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
+  if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_WRITE_MISS, addr.nodeID, dirKey);
@@ -709,6 +693,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
   agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
 
   // TODO: why need to receive other packets? why unlock? 
@@ -740,6 +725,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
 
 #ifndef BASELINE
       pollWithCQ(iCon->cq, 1, &wc);
+      agent_stats_inst.update_request_recv_count(iId);
       RawMessage *ack = (RawMessage *)iCon->message->getMessage();
       printRawMessage(ack, "app recv");
 
@@ -747,6 +733,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
 
       while (bitmap != 0) {
         pollWithCQ(iCon->cq, 1, &wc);
+        agent_stats_inst.update_request_recv_count(iId);
         ack = (RawMessage *)iCon->message->getMessage();
         printRawMessage(ack);
         bitmap ^= ack->mybitmap;
@@ -754,7 +741,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
 #else
       // TODO wait a ack from home agent
       pollWithCQ(iCon->cq, 1, &wc);
-
+      agent_stats_inst.update_request_recv_count(iId);
       auto ack = (RawMessage *)iCon->message->getMessage();
       assert(ack->mtype == RawMessageType::DIR_2_APP_WRITE_MISS_BASELINE);
 #endif
@@ -793,6 +780,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
       bool hasData = false;
       while (bitmap != 0) {
         pollWithCQ(iCon->cq, 1, &wc);
+        agent_stats_inst.update_request_recv_count(iId);
 
         if (wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
           assert(!hasData);
@@ -805,6 +793,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
       }
       if (!hasData) {
         pollWithCQ(iCon->cq, 1, &wc);
+        agent_stats_inst.update_request_recv_count(iId);
         assert(wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM);
       }
       goto succ;
@@ -814,6 +803,7 @@ bool Cache::writeMiss(const GlobalAddress &addr, LineInfo *info) {
 
       // TODO wait a data for cache agent
       pollWithCQ(iCon->cq, 1, &wc);
+      agent_stats_inst.update_request_recv_count(iId);
       assert(wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM);
 
       goto succ;
@@ -838,7 +828,7 @@ succ:
 }
 
 bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
-  // if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
+  if(iId == 0) agent_stats_inst.set_memaccess_type(MEMACCESS_TYPE::WITH_CC);
 
   uint32_t dirKey = addr.getDirKey();
   sendMessage2Dir(info, RawMessageType::R_WRITE_SHARED, addr.nodeID, dirKey);
@@ -848,6 +838,7 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
   agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -888,6 +879,7 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
 
     while (bitmap != 0) {
       pollWithCQ(iCon->cq, 1, &wc);
+      agent_stats_inst.update_request_recv_count(iId);
       ack = (RawMessage *)iCon->message->getMessage();
       printRawMessage(ack);
       bitmap ^= ack->mybitmap;
@@ -916,8 +908,9 @@ bool Cache::writeShared(const GlobalAddress &addr, LineInfo *info) {
 
 ///////////////////////////////////////////////////////////////////////////////
 bool Cache::evictLine(LineInfo *line, CacheStatus c,
-                      const GlobalAddress &addr) {
-
+                      const GlobalAddress &addr,
+                      const GlobalAddress &addr_in_waiting) {
+  agent_stats_inst.set_evict_flag(addr_in_waiting.addr);
   if (c == CacheStatus::SHARED) {
     return evictLineShared(addr, line);
   } else if (c == CacheStatus::MODIFIED) {
@@ -938,6 +931,7 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
   struct ibv_wc wc;
 
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
 
   assert(wc.opcode == IBV_WC_RECV);
   RawMessage *m = (RawMessage *)iCon->message->getMessage();
@@ -954,14 +948,12 @@ bool Cache::evictLineShared(const GlobalAddress &addr, LineInfo *info) {
 
   case RawMessageType::R_EVICT_SHARED:
   case RawMessageType::DIR_2_APP_EVICT_SHARED: {
-    uint16_t new_bitmap = dsm->mybitmap ^ m->bitmap;
-    RawState new_state =
-        new_bitmap == 0 ? RawState::S_UNSHARED : RawState::S_SHARED;
-
     info->writeEvictLock.wLock();
     { info->setInvalid(); }
     info->writeEvictLock.wUnlock();
 
+    uint16_t new_bitmap = dsm->mybitmap ^ m->bitmap;
+    RawState new_state = new_bitmap == 0 ? RawState::S_UNSHARED : RawState::S_SHARED;
     sendUnlock(new_bitmap, new_state, addr.nodeID, dirKey,
                RawMessageType::R_UNLOCK_EVICT);
     agent_stats_inst.control_packet_send_count[iId] += 1;
@@ -987,6 +979,7 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
   struct ibv_wc wc;
 
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
 
   assert(wc.opcode == IBV_WC_RECV);
   RawMessage *m = (RawMessage *)iCon->message->getMessage();
@@ -1013,6 +1006,7 @@ bool Cache::evictLineDirty(const GlobalAddress &addr, LineInfo *info) {
     agent_stats_inst.data_packet_send_count[iId] += 1;
 
     pollWithCQ(iCon->cq, 1, &wc);
+    agent_stats_inst.update_request_recv_count(iId);
 
     assert(wc.opcode == IBV_WC_RDMA_WRITE);
 
@@ -1053,14 +1047,14 @@ bool Cache::r_lock(const GlobalAddress &addr, uint32_t size) {
 
   // printf("issue r lock %lx\n", info.data);
 
-  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_LOCK, addr.nodeID, dirKey,
-                  false);
+  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_LOCK, addr.nodeID, dirKey, false);
   agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -1107,8 +1101,7 @@ void Cache::r_unlock(const GlobalAddress &addr, uint32_t size) {
 #endif
 
   // printf("issue un lock %lx\n", info.data);
-  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_UNLOCK, addr.nodeID,
-                  dirKey, false);
+  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_R_UNLOCK, addr.nodeID, dirKey, false);
   agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_UNLOCK);
 
@@ -1116,6 +1109,7 @@ void Cache::r_unlock(const GlobalAddress &addr, uint32_t size) {
   if (dirKey) {
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
+    agent_stats_inst.update_request_recv_count(iId);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
     assert(wc.opcode == IBV_WC_RECV);
   }
@@ -1137,14 +1131,14 @@ bool Cache::w_lock(const GlobalAddress &addr, uint32_t size) {
 #endif
 
   // printf("issue w lock %lx\n", info.data);
-  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_LOCK, addr.nodeID, dirKey,
-                  false);
+  sendMessage2Dir(&info, RawMessageType::PRIMITIVE_W_LOCK, addr.nodeID, dirKey, false);
   agent_stats_inst.control_packet_send_count[iId] += 1;
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
   struct ibv_wc wc;
   pollWithCQ(iCon->cq, 1, &wc);
+  agent_stats_inst.update_request_recv_count(iId);
   agent_stats_inst.stop_record_app_thread_with_op(addr.addr, APP_THREAD_OP::WAIT_ASYNC_FINISH_LOCK);
 
   agent_stats_inst.start_record_app_thread(addr.addr);
@@ -1199,6 +1193,7 @@ void Cache::w_unlock(const GlobalAddress &addr, uint32_t size) {
   if (dirKey) {
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
+    agent_stats_inst.update_request_recv_count(iId);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
     assert(wc.opcode == IBV_WC_RECV);
   }
@@ -1220,6 +1215,7 @@ GlobalAddress Cache::malloc(size_t size, bool align) {
 
     struct ibv_wc wc;
     pollWithCQ(iCon->cq, 1, &wc);
+    agent_stats_inst.update_request_recv_count(iId);
     RawMessage *ack = (RawMessage *)iCon->message->getMessage();
 
     GlobalAddress new_chunck;

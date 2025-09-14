@@ -56,3 +56,12 @@ char *getMac() {
     return (char *)ifr.ifr_hwaddr.sa_data;
 }
 
+
+
+// #define DSM_CACHE_INDEX_WIDTH (18) //8GB
+// // #define DSM_CACHE_INDEX_WIDTH (16) //65536->2GB
+// #define DSM_CACHE_INDEX_SIZE (1u << DSM_CACHE_INDEX_WIDTH)
+
+std::size_t g_dsm_cache_index_size  = (1u << 18); // 给个安全默认值
+int g_dsm_cache_index_width = 18;         // 对应上面的默认值
+int g_enable_switch_cc_flag = 0;

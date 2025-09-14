@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cassert>
 
+// state for cache
 enum CacheStatus : uint8_t {
   INVALID = 0,
   SHARED = 1,

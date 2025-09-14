@@ -95,8 +95,12 @@ enum class APP_THREAD_OP {
     AFTER_PROCESS_LOCAL_REQUEST_LOCK,
     AFTER_PROCESS_LOCAL_REQUEST_UNLOCK,
     AFTER_PROCESS_LOCAL_REQUEST_READ,
+    AFTER_PROCESS_LOCAL_REQUEST_READ_W_EVICT,
+    AFTER_PROCESS_LOCAL_REQUEST_READ_WO_EVICT,
     AFTER_PROCESS_LOCAL_REQUEST_READP2P,
     AFTER_PROCESS_LOCAL_REQUEST_WRITE,
+    AFTER_PROCESS_LOCAL_REQUEST_WRITE_W_EVICT,
+    AFTER_PROCESS_LOCAL_REQUEST_WRITE_WO_EVICT,
     AFTER_PROCESS_LOCAL_REQUEST_OTHER,
     WAIT_ASYNC_FINISH_LOCK,
     WAIT_ASYNC_FINISH_UNLOCK,
@@ -104,7 +108,11 @@ enum class APP_THREAD_OP {
     WAKEUP_2_LOCK_RETURN,
     WAKEUP_2_UNLOCK_RETURN,
     WAKEUP_2_READ_RETURN,
+    WAKEUP_2_READ_RETURN_W_EVICT,
+    WAKEUP_2_READ_RETURN_WO_EVICT,
     WAKEUP_2_WRITE_RETURN,
+    WAKEUP_2_WRITE_RETURN_W_EVICT,
+    WAKEUP_2_WRITE_RETURN_WO_EVICT,
     MEMSET,
     _count,
 };
@@ -136,6 +144,7 @@ extern __thread std::thread::id now_thread_id;
 class agent_stats {
 private:
     // only collect mem access stat from 1 special app thread 
+    bool evict_flag = false;
     uint64_t memaccess_counter;
     MEMACCESS_TYPE memaccess_type;
     std::unordered_map<MEMACCESS_TYPE, Histogram *> memaccess_type_stats;
@@ -487,12 +496,40 @@ public:
             fclose(file);
             save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_READ");
 
+            filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_READ_W_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ_W_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_READ_W_EVICT");
+
+            filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_READ_WO_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ_WO_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_READ_WO_EVICT");
+
             filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_WRITE" + common_suffix);
             file = fopen(filePath.c_str(), "w");
             assert(file != nullptr);
             app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE]->print(file, 5);
             fclose(file);
             save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_WRITE");
+
+            filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_WRITE_W_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE_W_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_WRITE_W_EVICT");
+
+            filePath = result_directory / fs::path("AFTER_PROCESS_LOCAL_REQUEST_WRITE_WO_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE_WO_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "AFTER_PROCESS_LOCAL_REQUEST_WRITE_WO_EVICT");
 
             filePath = result_directory / fs::path("WAIT_ASYNC_FINISH" + common_suffix);
             file = fopen(filePath.c_str(), "w");
@@ -508,12 +545,40 @@ public:
             fclose(file);
             save_clean_stat(result_dir, "WAKEUP_2_READ_RETURN");
 
+            filePath = result_directory / fs::path("WAKEUP_2_READ_RETURN_W_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_READ_RETURN_W_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "WAKEUP_2_READ_RETURN_W_EVICT");
+
+            filePath = result_directory / fs::path("WAKEUP_2_READ_RETURN_WO_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_READ_RETURN_WO_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "WAKEUP_2_READ_RETURN_WO_EVICT");
+
             filePath = result_directory / fs::path("WAKEUP_2_WRITE_RETURN" + common_suffix);
             file = fopen(filePath.c_str(), "w");
             assert(file != nullptr);
             app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_WRITE_RETURN]->print(file, 5);
             fclose(file);
             save_clean_stat(result_dir, "WAKEUP_2_WRITE_RETURN");
+
+            filePath = result_directory / fs::path("WAKEUP_2_WRITE_RETURN_W_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_WRITE_RETURN_W_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "WAKEUP_2_WRITE_RETURN_W_EVICT");
+
+            filePath = result_directory / fs::path("WAKEUP_2_WRITE_RETURN_WO_EVICT" + common_suffix);
+            file = fopen(filePath.c_str(), "w");
+            assert(file != nullptr);
+            app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_WRITE_RETURN_WO_EVICT]->print(file, 5);
+            fclose(file);
+            save_clean_stat(result_dir, "WAKEUP_2_WRITE_RETURN_WO_EVICT");
 
             filePath = result_directory / fs::path("WAKEUP_2_LOCK_RETURN" + common_suffix);
             file = fopen(filePath.c_str(), "w");
@@ -593,11 +658,11 @@ public:
             
             if(i < nr_dir){
                 fprintf(file, "%d\t", home_recv_count[i]);
-                printf("sysID = %d, home_recv_count = %d\t", i, home_recv_count[i]);
+                // printf("sysID = %d, home_recv_count = %d\t", i, home_recv_count[i]);
             }
             else{
                 fprintf(file, "%d\t", cache_recv_count[i]);
-                printf("sysID = %d, cache_recv_count = %d\t", i, cache_recv_count[i]);
+                // printf("sysID = %d, cache_recv_count = %d\t", i, cache_recv_count[i]);
             }
             
         }
@@ -726,6 +791,7 @@ public:
     inline void start_record_with_memaccess_type() {
         if (start) {
             app_thread_counter = rdtsc();
+            memaccess_type = MEMACCESS_TYPE::WITHOUT_CC;
         }
     }
     inline void set_memaccess_type(MEMACCESS_TYPE type = MEMACCESS_TYPE::DONT_DISTINGUISH) {
@@ -741,6 +807,12 @@ public:
         }
     }
 
+    inline void set_evict_flag(GAddr gaddr) {
+        if (is_valid_gaddr(gaddr) && start) {
+            evict_flag = true;
+        }
+    }
+
     inline void start_record_app_thread(GAddr gaddr) {
         if (is_valid_gaddr(gaddr) && start) {
             std::lock_guard<std::mutex> lock(app_mtx);
@@ -752,10 +824,24 @@ public:
             std::lock_guard<std::mutex> lock(app_mtx);
             // printf("stop_record_app_thread_with_op: gaddr = %ld, op = %d\n", gaddr, static_cast<int>(op));
             uint64_t ns = rdtscp() - app_thread_counter;
-            if (op == APP_THREAD_OP::NONE) {
-                app_thread_stats->record(ns);
-            } else {
-                app_thread_op_stats[op]->record(ns);
+            app_thread_op_stats[op]->record(ns);
+            if(op == APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ){
+                if(evict_flag) app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ_W_EVICT]->record(ns);
+                else app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_READ_WO_EVICT]->record(ns);
+            }
+            else if(op == APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE){
+                if(evict_flag) app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE_W_EVICT]->record(ns);
+                else app_thread_op_stats[APP_THREAD_OP::AFTER_PROCESS_LOCAL_REQUEST_WRITE_WO_EVICT]->record(ns);
+            }
+            else if(op == APP_THREAD_OP::WAKEUP_2_READ_RETURN){
+                if(evict_flag) app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_READ_RETURN_W_EVICT]->record(ns);
+                else app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_READ_RETURN_WO_EVICT]->record(ns);
+                evict_flag = false;
+            }
+            else if(op == APP_THREAD_OP::WAKEUP_2_WRITE_RETURN){
+                if(evict_flag) app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_WRITE_RETURN_W_EVICT]->record(ns);
+                else app_thread_op_stats[APP_THREAD_OP::WAKEUP_2_WRITE_RETURN_WO_EVICT]->record(ns);
+                evict_flag = false;
             }
         }
     }

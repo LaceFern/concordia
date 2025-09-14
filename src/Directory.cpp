@@ -10,7 +10,7 @@
 // #include <gperftools/profiler.h>
 
 #ifndef BASELINE
-// #define ENABLE_SWITCH_CC
+#define ENABLE_SWITCH_CC
 #endif
 
 uint64_t dirSendDataCounter = 0;
@@ -25,6 +25,10 @@ Directory::Directory(DirectoryConnection *dCon, RemoteConnection *remoteInfo,
                      Controller *controller)
     : dCon(dCon), remoteInfo(remoteInfo), machineNR(machineNR), dirID(dirID),
       nodeID(nodeID), controller(controller), dirTh(nullptr) {
+
+#ifdef ENABLE_SWITCH_CC
+  g_enable_switch_cc_flag = 1;
+#endif
 
   assert(sizeof(RawImm) == sizeof(uint32_t));
 
@@ -60,21 +64,21 @@ Directory::Directory(DirectoryConnection *dCon, RemoteConnection *remoteInfo,
   // // switchManager->addAll(machineNR);
   // Debug::notifyInfo("end start insert table");
 
-  sysID = dirID;
-  dirTh = new std::thread(&Directory::dirThread, this);
   // sysID = dirID;
-  // if(dirID < agent_stats_inst.dir_queue_num){
-  //   queueID = dirID;
-  //   agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
-  //   // agent_stats_inst.safe_queues[queueID] = new SafeQueue<queue_entry>();
+  // dirTh = new std::thread(&Directory::dirThread, this);
+  sysID = dirID;
+  if(dirID < agent_stats_inst.dir_queue_num){
+    queueID = dirID;
+    agent_stats_inst.queues[queueID] = new SPSC_QUEUE(MAX_WORKER_PENDING_MSG);
+    // agent_stats_inst.safe_queues[queueID] = new SafeQueue<queue_entry>();
 
-  //   // countTh = new std::thread(&Directory::countThread, this);
-  //   processTh = new std::thread(&Directory::processThread, this);
-  //   dirTh = new std::thread(&Directory::queueThread, this);
-  // }
-  // else{
-  //   dirTh = new std::thread(&Directory::dirThread, this);
-  // }
+    // countTh = new std::thread(&Directory::countThread, this);
+    processTh = new std::thread(&Directory::processThread, this);
+    dirTh = new std::thread(&Directory::queueThread, this);
+  }
+  else{
+    dirTh = new std::thread(&Directory::dirThread, this);
+  }
 }
 
 Directory::~Directory() {
@@ -102,8 +106,8 @@ void Directory::init_switch() {
 }
 
 void Directory::countThread() {
-  bindCore(NUMA_CORE_NUM - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
-  Debug::notifyInfo("dir count %d launch!\n", dirID);
+  bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - NR_DIRECTORY - queueID);
+  Debug::notifyInfo("dir count %d launch!", dirID);
 
   uint64_t start, end;
   double cpu_frequency = 2.2; // Assume CPU frequency in GHz
@@ -132,7 +136,7 @@ void Directory::countThread() {
 
 void Directory::queueThread() {
   bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - dirID);
-  Debug::notifyInfo("dir queue %d launch!\n", dirID);
+  Debug::notifyInfo("dir queue %d launch!", dirID);
 
   // printf("IBV_WC_RECV = %d, IBV_WC_RDMA_WRITE = %d, IBV_WC_RECV_RDMA_WITH_IMM = %d", 
   //     IBV_WC_RECV, IBV_WC_RDMA_WRITE, IBV_WC_RECV_RDMA_WITH_IMM);
@@ -192,12 +196,13 @@ void Directory::processThread() {
         dirRecvControlCounter++;
         auto m = (RawMessage *)dCon->message->getMessage();
 
-        if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-          // //debug
-          // printf("processThread: Im here!\n");
-          res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
-          agent_stats_inst.update_home_recv_count(sysID);
-        }
+        // if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+        //   // //debug
+        //   // printf("processThread: Im here!\n");
+        //   res_op = MULTI_SYS_THREAD_OP::PROCESS_IN_HOME_NODE;
+        //   agent_stats_inst.update_home_recv_count(sysID);
+        // }
+        agent_stats_inst.update_home_recv_count(sysID);
 
         printRawMessage(m, "dir recv");
 
@@ -274,7 +279,7 @@ void Directory::processThread() {
 void Directory::dirThread() {
 
   bindCore(NUMA_CORE_NUM - 1 - NR_CACHE_AGENT - dirID);
-  Debug::notifyInfo("dir %d launch!\n", dirID);
+  Debug::notifyInfo("dir %d launch!", dirID);
 
   // test_change_ownership();
 
@@ -288,11 +293,12 @@ void Directory::dirThread() {
       dirRecvControlCounter++;
       auto m = (RawMessage *)dCon->message->getMessage();
 
-      if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
-        // //debug
-        // printf("dirThread: Im here!\n");
-        agent_stats_inst.update_home_recv_count(sysID);
-      }
+      // if(agent_stats_inst.is_valid_gaddr(DirKey2Addr(m->dirKey))){
+      //   // //debug
+      //   // printf("dirThread: Im here!\n");
+      //   agent_stats_inst.update_home_recv_count(sysID);
+      // }
+      agent_stats_inst.update_home_recv_count(sysID);
 
       printRawMessage(m, "dir recv");
 
@@ -749,11 +755,9 @@ bool Directory::pull_from_switch(uint32_t dirKey) {
 ////////////////////////////////////////////////////////////////////////////
 
 void Directory::sendData2App(const RawMessage *m) {
-
   RawImm imm;
   imm.bitmap = m->bitmap;
   imm.state = m->state;
-
   rdmaWrite(dCon->data2app[m->appID][m->nodeID],
             (uint64_t)dCon->dsmPool + DirKey2Addr(m->dirKey), m->destAddr,
             DSM_CACHE_LINE_SIZE, dCon->dsmLKey,
@@ -765,37 +769,27 @@ void Directory::sendData2App(const RawMessage *m) {
 void Directory::sendAck2AppByPassSwitch(const RawMessage *from_message,
                                         RawMessageType type, uint64_t value) {
   dirSendControlCounter++;
-
   RawMessage *m = (RawMessage *)dCon->message->getSendPool();
   memcpy(m, from_message, sizeof(RawMessage));
-
   m->qpn = dCon->message->getQPN();
   m->mtype = type;
   m->is_app_req = 0;
   m->destAddr = value;
-
   m->invalidate_tag();
-
   printRawMessage(m, "dir send");
-
   dCon->sendMessage(m);
 }
 
 void Directory::sendMessage2Agent(const RawMessage *m, uint8_t agentID,
                                   RawMessageType type) {
   dirSendControlCounter++;
-
   RawMessage *control = (RawMessage *)dCon->message->getSendPool();
   memcpy(control, m, sizeof(RawMessage));
-
   control->qpn = dCon->message->getQPN();
-
   control->mtype = type;
   control->agentID = agentID;
   control->is_app_req = 0;
-
   printRawMessage(control, "dir send");
-
   dCon->sendMessage(control);
 }
 
@@ -956,8 +950,7 @@ void Directory::primitive_r_unlock(RawMessage *m) {
   }
 
   if (m->dirKey) {
-    sendAck2AppByPassSwitch(m, RawMessageType::PRIMITIVE_UNLOCK_ACK,
-                            m->destAddr);
+    sendAck2AppByPassSwitch(m, RawMessageType::PRIMITIVE_UNLOCK_ACK, m->destAddr);
     agent_stats_inst.control_packet_send_count[MAX_APP_THREAD + sysID] += 1;
   }
 

@@ -75,6 +75,7 @@ enum RawMessageType : uint8_t {
   NOP_REQUEST = 111,
 };
 
+// state for dir
 enum RawState : uint8_t {
   S_UNSHARED = 0,
   S_SHARED = 1,

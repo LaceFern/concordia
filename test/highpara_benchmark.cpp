@@ -34,15 +34,20 @@ uint64_t breakdown_size = DSM_CACHE_LINE_SIZE * breakdown_times;
 
 #define MAX_THREAD 48
 
-#define OP_NUMS 200000 //2000000
-#define OBJ_SIZE 8
+#define OP_NUMS 4000000 //2000000
+#define OBJ_SIZE 4096
 
 #define MB (1024ull * 1024)
+#define GB (1024ull * 1024 * 1024)
 
-const uint64_t BLOCK_SIZE = uint64_t(MB * 31); //uint64_t(MB * 31); // 31 user application space required per node
+// BLOCK_SIZE为单机提供的被共享的gmem空间大小
+uint64_t BLOCK_SIZE = uint64_t(MB * 1024); //uint64_t(MB * 31); // 31 user application space required per node
+uint32_t SUB_PAGE_SIZE = 4096; // aligned byte granularity for user mem operation
+uint32_t STEPS;
 
-#define SUB_PAGE_SIZE (512) // aligned byte granularity for user mem operation
-#define STEPS (BLOCK_SIZE * nodeNR / SUB_PAGE_SIZE)
+// UNSHARED_BLOCK_SIZE为单机提供的不被共享的gmem空间大小(Concordia原版开的空间太大了)
+uint64_t UNSHARED_BLOCK_SIZE;
+
 
 extern thread_local uint64_t evict_time;
 
@@ -76,10 +81,10 @@ void init_trace(int nodeID, int threadID) {
   int id = nodeID * threadNR + threadID;
   int all = nodeNR * threadNR;
 
-  uint64_t addrStart = id * BLOCK_SIZE;
-  uint64_t addrSize = BLOCK_SIZE;
+  uint64_t addrStart = 0;
+  uint64_t addrSize = all * UNSHARED_BLOCK_SIZE;
 
-  uint64_t sharingStart = (all + 1) * BLOCK_SIZE;
+  uint64_t sharingStart = (all + 1) * UNSHARED_BLOCK_SIZE;
   uint64_t sharingSize = BLOCK_SIZE;
 
   seed = time(NULL) + nodeID * 10 + threadID;
@@ -91,15 +96,12 @@ void init_trace(int nodeID, int threadID) {
     GlobalAddress addr;
 
     if (!isSharing) {
-      addr.nodeID = node;
-      addr.addr = addrStart + offset;
-      node = (node + 1) % nodeNR;
-      if (node == 0) {
-        offset += SUB_PAGE_SIZE;
-      }
+      addr.nodeID = nodeID;
+      addr.addr = addrStart + (rand_r(&seed) % (addrSize / SUB_PAGE_SIZE)) * SUB_PAGE_SIZE; //地址对齐
     } else {
       addr.nodeID = rand_r(&seed) % nodeNR;
-      addr.addr = sharingStart + rand_r(&seed) % sharingSize;
+      // addr.addr = sharingStart + rand_r(&seed) % sharingSize;
+      addr.addr = sharingStart + (rand_r(&seed) % (sharingSize / SUB_PAGE_SIZE)) * SUB_PAGE_SIZE; //地址对齐
     }
 
     traces[op] = addr;
@@ -238,38 +240,16 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
         // TODO: thread_access_[op] --> to_access_breakdown
         switch (request_rw) {
         case 0: {
-          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->Try_RLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
-
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->read(to_access_breakdown, OBJ_SIZE, to);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_READ_RETURN);
-
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->UnLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
           break;
         }
 
         case 1: {
-          // printf("checkpoint 1.1 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->Try_WLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_LOCK_RETURN);
-          // printf("checkpoint 1.2 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-
           agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
           dsm->write(to_access_breakdown, OBJ_SIZE, from);
           agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_WRITE_RETURN);
-          // printf("checkpoint 1.3 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-
-          agent_stats_inst.start_record_app_thread(to_access_breakdown.addr);
-          dsm->UnLock(to_access_breakdown, OBJ_SIZE);
-          agent_stats_inst.stop_record_app_thread_with_op(to_access_breakdown.addr, APP_THREAD_OP::WAKEUP_2_UNLOCK_RETURN);
-          // printf("checkpoint 1.4 on thread %d: Gaddr = %ld\n", threadID, to_access_breakdown.addr);
-
           break;
         }
         default: {
@@ -294,7 +274,7 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
     clock_gettime(CLOCK_REALTIME, &s);
 #endif
 
-    // if(threadID == 0) agent_stats_inst.start_record_with_memaccess_type();
+    if(threadID == 0) agent_stats_inst.start_record_with_memaccess_type();
 
     if (isRead) {
 
@@ -310,7 +290,7 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
       dsm->write(thread_access_[op], OBJ_SIZE, from);
     }
 
-    // if(threadID == 0) agent_stats_inst.stop_record_with_memaccess_type();
+    if(threadID == 0) agent_stats_inst.stop_record_with_memaccess_type();
 
 #ifdef SHOW_LATENCY
     clock_gettime(CLOCK_REALTIME, &e);
@@ -325,9 +305,6 @@ void Run_request(int nodeID, int threadID, const std::string &prefix) {
 
 void start_thread(int nodeID, int threadID) {
 
-  // printf("checkpoint 0 on thread %d\n", threadID);
-  fflush(stdout);
-
   // // 总线程数少于等于12且在numa0
   // if(threadID < 12){
   //   bindCore(threadID);
@@ -341,7 +318,15 @@ void start_thread(int nodeID, int threadID) {
   //   bindCore(threadID + 24);
   // }
 
-  // // app在numa1,sys在numa0
+  // // // app在numa0,sys在numa0
+  // if(threadID < 12){
+  //   bindCore(24 + threadID);
+  // }
+  // else if(threadID < 24){
+  //   bindCore(threadID - 12);
+  // }
+
+  // app在numa1,sys在numa0
   if(threadID < 12){
     bindCore(12 + threadID);
   }
@@ -352,58 +337,34 @@ void start_thread(int nodeID, int threadID) {
     bindCore(threadID);
   }
 
-  // printf("checkpoint 1 on thread %d\n", threadID);
-  fflush(stdout);
-
   dsm->registerThread();
 
-  // if (threadID == 0) {
-  //   sleep(5);
-  //   dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt));
-  //   // printf("node %d start benchmark\n", nodeID);
-  // }
-
-  // agent_stats_inst.waitForSpace();
-  // printf("start warmup the cache for no-breakdown on thread %d\n", threadID);
+  printf("start warmup the cache for no-breakdown on node %d, thread %d\n", nodeID, threadID);
   fflush(stdout);
-
   Run_request(nodeID, threadID, "warmup"); // warmup
-
-  // printf("checkpoint 2 on thread %d\n", threadID);
-  fflush(stdout);
 
   warmup_no_breakdown.fetch_add(1);
   while (warmup_no_breakdown.load() != threadNR) ;
   if (threadID == 0) {
     dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt + 1));
-    // printf("node %d start benchmark\n", nodeID);
   }
 
-  // printf("start warmup the cache for breakdown on thread %d\n", threadID);
+  printf("start warmup the cache for breakdown on node %d, thread %d\n", nodeID, threadID);
   fflush(stdout);
-
   Run_cache(nodeID, threadID, "warmup"); // warmup
-
-  // printf("checkpoint 3 on thread %d\n", threadID);
-  fflush(stdout);
 
   warmup_breakdown.fetch_add(1);
   while (warmup_breakdown.load() != threadNR) ;
   if (threadID == 0) {
     dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt + 2));
-    // printf("node %d start benchmark\n", nodeID);
   }
 
-  // printf("checkpoint 4 on thread %d\n", threadID);
+  printf("start benchmark on node %d, thread %d\n", nodeID, threadID);
   fflush(stdout);
-
   ready.fetch_add(1);
   Statistics::clear();
   while (ready.load() != threadNR) ;
   if (threadID == 0) agent_stats_inst.start_collection();
-
-  // printf("start run the benchmark on thread %d\n", threadID);
-  fflush(stdout);
 
   Run_request(nodeID, threadID, "benchmark");
   finish.fetch_add(1);
@@ -412,59 +373,7 @@ void start_thread(int nodeID, int threadID) {
   //                   threadID, evict_time);
 }
 
-// void start_thread(int nodeID, int threadID) {
-
-//   bindCore(threadID);
-
-//   dsm->registerThread();
-
-//   benchmark(nodeID, threadID, "warmup"); // warmup
-
-//   init.fetch_add(1);
-//   while (init.load() != threadNR)
-//     ;
-
-//   if (threadID == 0) {
-//     dsm->keeper->barrier(std::string("benchmark-") + std::to_string(round_cnt));
-//     // printf("node %d start benchmark\n", nodeID);
-//   }
-
-//   ready.fetch_add(1);
-//   Statistics::clear();
-//   while (ready.load() != threadNR)
-//     ;
-
-//   benchmark(nodeID, threadID, "benchmark");
-//   finish.fetch_add(1);
-
-//   // Debug::notifyInfo("node %d thread %d finish, evict time %llu", nodeID,
-//   //                   threadID, evict_time);
-// }
-
 void parserArgs(int argc, char **argv) {
-
-  // if (argc != 6 && argc != 7) {
-  //   fprintf(
-  //       stderr,
-  //       "Usage: ./benchmark nodeNR threadNR readNR locality sharing output \n");
-  //   exit(-1);
-  // }
-
-  // nodeNR = std::atoi(argv[1]);
-  // threadNR = std::atoi(argv[2]);
-  // readNR = std::atoi(argv[3]);
-  // locality = std::atoi(argv[4]);
-  // sharing = std::atoi(argv[5]);
-
-  // if (argc == 7) {
-  //   output_file = argv[6];
-  // }
-
-  // fprintf(stdout,
-  //         "Benchmark Config: nodeNR %d, threadNR %d, readNR %d, locality %d, "
-  //         "sharing %d\n",
-  //         nodeNR, threadNR, readNR, locality, sharing);
-
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--no_node") == 0) {
       nodeNR = atoi(argv[++i]);  //0..100
@@ -497,13 +406,22 @@ void parserArgs(int argc, char **argv) {
       breakdown_times = atoi(argv[++i]);
     } else if (strcmp(argv[i], "--result_dir") == 0) {
       result_directory = argv[++i];  //0..100
+    } else if (strcmp(argv[i], "--blksize_MB") == 0){
+      BLOCK_SIZE = uint64_t(MB * atoi(argv[++i]));
     }
     /******** MY CODE ENDS ********/
     /***********************************/
-
     else {
       fprintf(stderr, "Unrecognized option %s for benchmark\n", argv[i]);
     }
+  }
+  STEPS = ((long)BLOCK_SIZE * nodeNR / SUB_PAGE_SIZE);
+  UNSHARED_BLOCK_SIZE = (long)BLOCK_SIZE / (threadNR * nodeNR);
+
+  g_dsm_cache_index_size  = (long)BLOCK_SIZE * nodeNR * 0.5 / (DSM_CACHE_LINE_SIZE * CACHE_WAYS);
+  g_dsm_cache_index_width = 0;
+  while ((1UL << g_dsm_cache_index_width) < g_dsm_cache_index_size){
+    g_dsm_cache_index_width++;
   }
 
   fprintf(stdout,
@@ -516,7 +434,6 @@ void parserArgs(int argc, char **argv) {
 int main(int argc, char **argv) {
 
   parserArgs(argc, argv);
-
   /***********************************/
   /******** MY CODE STARTS ********/
   printf("My CC configuration is: ");
@@ -533,15 +450,20 @@ int main(int argc, char **argv) {
   /******** MY CODE ENDS ********/
   /***********************************/
 
-  uint64_t sys_total_size = 4; //GB
-  DSMConfig conf(CacheConfig(), nodeNR, sys_total_size); // 4G per node;
+  uint64_t sys_total_size = 16; //GB,表示单个节点的sb分配器能够支配的大页内存空间
+  DSMConfig conf(CacheConfig(), nodeNR, sys_total_size);
 
   /***********************************/
   /******** MY CODE STARTS ********/
   cout << "conf.size = " << sys_total_size / nodeNR << "GB" << endl;
   cout << "----------" << endl;
-  cout << "user access space = " << ((long)BLOCK_SIZE) * nodeNR * 1.0 / (1024 * 1024 * 1024) << "GB" << endl;
-  cout << "user cache ratio = " << ((long)DSM_CACHE_INDEX_SIZE) * CACHE_WAYS * DSM_CACHE_LINE_SIZE / (BLOCK_SIZE * nodeNR) << endl;
+  cout << "nodeNR = " << nodeNR << endl;
+  cout << "BLOCK_SIZE = " << (long)BLOCK_SIZE / (1024 * 1024) << "MB" << endl;
+  cout << "total access space = " << ((long)BLOCK_SIZE) * nodeNR * 1.0 * 2 / (1024 * 1024 * 1024) << "GB" << endl;
+  cout << "per-node access space = " << ((long)BLOCK_SIZE) * (nodeNR + 1) * 1.0 / (1024 * 1024 * 1024) << "GB" << endl;
+  cout << "per-node unshared-gmem access space = " << ((long)BLOCK_SIZE) * 1.0 / (1024 * 1024 * 1024) << "GB" << endl;
+  cout << "per-node shared-gmem access space = " << ((long)BLOCK_SIZE) * nodeNR * 1.0 / (1024 * 1024 * 1024) << "GB" << endl;
+  cout << "shared-gmem cache ratio = " << ((long)DSM_CACHE_INDEX_SIZE) * CACHE_WAYS * DSM_CACHE_LINE_SIZE / (BLOCK_SIZE * nodeNR * 1.0) << endl;
   agent_stats_inst.end_collection();
   /******** MY CODE ENDS ********/
   /***********************************/
@@ -558,13 +480,9 @@ int main(int argc, char **argv) {
   // retry:
 
   // init
-  printf("checkpoint -4 on main thread\n");
   for (int i = 0; i < threadNR; ++i) {
-    printf("checkpoint -3 on main thread\n");
     th[i] = new std::thread(init_trace, dsm->getMyNodeID(), i);
-    printf("checkpoint -2 on main thread\n");
   }
-  printf("checkpoint -1 on main thread\n");
   for (int i = 0; i < threadNR; ++i) {
     th[i]->join();
   }
@@ -667,12 +585,24 @@ int main(int argc, char **argv) {
     FILE *file;
     fs::path dir(result_directory);
     fs::path filePath = dir / fs::path("end_to_end" + common_suffix);
+
+    // 如果文件不存在或大小为 0，则需要写表头
+    bool need_header = !fs::exists(filePath) || fs::file_size(filePath) == 0;
+
     file = fopen(filePath.c_str(), "a");
     assert(file != nullptr);
-    fprintf(file, "\n---new results---\n");
-    fprintf(file, "dir recv count = %lu\t dir send count =  %lu\n", recv_c, send_c);
+
+    if (dsm->myNodeID == 0 && need_header) {
+        // 表头：用\t 与数据列对齐
+        fprintf(file,
+                "# switch\tnodeNR\tthreadNR\tlocality\tsharing\tread_ratio\tBLOCK_SIZE\tTP\tALL_TP\truntime\n");
+    }
+
+    // fprintf(file, "\n---new results---\n");
+    // fprintf(file, "dir recv count = %lu\t dir send count =  %lu\t", recv_c, send_c);
     if (dsm->myNodeID == 0) {
-      fprintf(file, "sharing ratio = %d\t tp: %llu op/s; all-tp: %llu op/s; seconds: %lf\n", sharing, tp, all_tp, microseconds/1000/1000);
+      fprintf(file, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t", g_enable_switch_cc_flag, nodeNR, threadNR, locality, sharing, readNR, BLOCK_SIZE);
+      fprintf(file, "%llu\t%llu\t%lf\n", tp, all_tp, microseconds/1000/1000);
     }
 
     // agent_stats_inst.print_all_false_count(file, threadNR);
